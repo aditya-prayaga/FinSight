@@ -1,0 +1,35 @@
+[2024-06-09T04:52:26.690+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2024-06-09T04:52:26.710+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: FinSight_pipeline.generate_and_validate_scheme_training manual__2024-06-09T04:52:12.742487+00:00 [queued]>
+[2024-06-09T04:52:26.715+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: FinSight_pipeline.generate_and_validate_scheme_training manual__2024-06-09T04:52:12.742487+00:00 [queued]>
+[2024-06-09T04:52:26.716+0000] {taskinstance.py:2306} INFO - Starting attempt 1 of 1
+[2024-06-09T04:52:26.725+0000] {taskinstance.py:2330} INFO - Executing <Task(PythonOperator): generate_and_validate_scheme_training> on 2024-06-09 04:52:12.742487+00:00
+[2024-06-09T04:52:26.753+0000] {warnings.py:110} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:61: DeprecationWarning: This process (pid=2168) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2024-06-09T04:52:26.755+0000] {standard_task_runner.py:63} INFO - Started process 2200 to run task
+[2024-06-09T04:52:26.757+0000] {standard_task_runner.py:90} INFO - Running: ['***', 'tasks', 'run', 'FinSight_pipeline', 'generate_and_validate_scheme_training', 'manual__2024-06-09T04:52:12.742487+00:00', '--job-id', '83', '--raw', '--subdir', 'DAGS_FOLDER/FinSight/finsight_pipeline_taks.py', '--cfg-path', '/tmp/tmp_8e_kcjr']
+[2024-06-09T04:52:26.760+0000] {standard_task_runner.py:91} INFO - Job 83: Subtask generate_and_validate_scheme_training
+[2024-06-09T04:52:26.797+0000] {task_command.py:426} INFO - Running <TaskInstance: FinSight_pipeline.generate_and_validate_scheme_training manual__2024-06-09T04:52:12.742487+00:00 [running]> on host bc9e3c56deeb
+[2024-06-09T04:52:26.877+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='Group 2' AIRFLOW_CTX_DAG_ID='FinSight_pipeline' AIRFLOW_CTX_TASK_ID='generate_and_validate_scheme_training' AIRFLOW_CTX_EXECUTION_DATE='2024-06-09T04:52:12.742487+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2024-06-09T04:52:12.742487+00:00'
+[2024-06-09T04:52:26.878+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2024-06-09T04:52:26.885+0000] {finsight_pipeline_functions.py:229} INFO - Generating and validating scheme.
+[2024-06-09T04:52:26.885+0000] {python.py:237} INFO - Done. Returned value was:                  Open       High        Low      Close  Adj Close    Volume
+Date                                                                       
+2005-07-21   2.412857   2.430000   2.364286   2.378571   2.378571   3916500
+2009-07-20   6.358571   6.425714   6.232857   6.402857   6.402857   9681000
+2005-08-31   3.065714   3.091429   3.014286   3.080000   3.080000   5308100
+2007-03-13   3.000000   3.022857   2.928571   2.935714   2.935714   9384200
+2013-11-19  48.681431  49.545715  47.748569  48.184284  48.184284  17057600
+...               ...        ...        ...        ...        ...       ...
+2010-01-06   7.361429   7.672857   7.197143   7.617143   7.617143  23290400
+2014-01-10  48.295715  48.377144  47.218571  47.448570  47.448570  16237900
+2013-07-30  35.057144  35.415714  34.544285  34.822857  34.822857  10890600
+2004-08-12   2.270000   2.284286   2.185714   2.197143   2.197143  13949600
+2003-10-23   3.657857   3.815714   3.578571   3.723571   3.723571  23143400
+
+[2183 rows x 6 columns]
+[2024-06-09T04:52:26.891+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2024-06-09T04:52:26.910+0000] {taskinstance.py:1206} INFO - Marking task as SUCCESS. dag_id=FinSight_pipeline, task_id=generate_and_validate_scheme_training, run_id=manual__2024-06-09T04:52:12.742487+00:00, execution_date=20240609T045212, start_date=20240609T045226, end_date=20240609T045226
+[2024-06-09T04:52:26.939+0000] {local_task_job_runner.py:240} INFO - Task exited with return code 0
+[2024-06-09T04:52:26.956+0000] {taskinstance.py:3498} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2024-06-09T04:52:26.957+0000] {local_task_job_runner.py:222} INFO - ::endgroup::
