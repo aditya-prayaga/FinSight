@@ -22,8 +22,8 @@ This project demonstrates a comprehensive pipeline for processing stock data and
 ### Project Structure
 This Project will be designed to be robust in both development and production setup. We Created 2 branches
 
-1. ```dev``` for local development version
-2. ```main``` for production ready version
+1. ```dev``` for local development version with local storage & deployment
+2. ```main``` for production ready version with Google storage & deployment
 
 ```
 .
@@ -53,8 +53,15 @@ This Project will be designed to be robust in both development and production se
 ### Installation
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/stock-data-pipeline.git
-   cd stock-data-pipeline
+   git clone https://github.com/aditya-prayaga/FinSight.git
+   cd FinSight
+    ```
+    **Note:** 
+    1. If the user trying to install doesn't have airflow setup/docker setup done, please follow instructions in this [video](https://www.youtube.com/watch?v=exFSeGUbn4Q&t=511s&pp=ygUTcmFtaW4gYWlyZmxvdyBzZXR1cA%3D%3D)
+    2. Please git check out ```dev``` branch to find additional files like ```docker-compose.yaml```, logs etc which help us in deploying the airflow and orchestrate.
+
+2. dsd
+
 
 
 ## Project Information
