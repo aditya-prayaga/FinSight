@@ -46,9 +46,10 @@ This Project will be designed to be robust in both development and production se
 ```
 
 ### Prerequisites
-- Python 3.7+ (Packages like tensorflow, sklearn, etc.)
+- Python 3.7+
 - Apache Airflow 2.5+
 - Google Cloud Services
+- TensorFlow, scikit-learn, DVC
 - Google Cloud SDK (for GCS integration)
 
 ### Installation
