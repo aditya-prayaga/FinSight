@@ -1,10 +1,7 @@
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
-from google.cloud import storage
-import os
-import tempfile
-import gcsfs
+# import tensorflow_data_validation as tfdv
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 import logging
@@ -220,35 +217,47 @@ def apply_transformation(df):
         logging.error(f"Failed to apply transformations: {e}")
         raise
 
-# def generate_and_validate_scheme(df):
-#     """
-#     Placeholder function for generating and validating scheme.
-#     """
-#     try:
-#         logging.info("Generating and validating scheme.")
-#         return df
-#     except Exception as e:
-#         logging.error(f"Failed to generate and validate scheme: {e}")
-#         raise
+def generate_scheme_and_stats(df,ti):
+    """
+    Placeholder function for generating and validating scheme.
+    """
+    try:
+        logging.info("Generating scheme and stats.")
+        
+        # Scheme
+        # schema = tfdv.infer_schema(df)
+        # tfdv.display_schema(schema)
 
-# def generate_and_validate_stats(df):
-#     """
-#     Placeholder function for generating and validating stats.
-#     """
-#     try:
-#         logging.info("Generating and validating stats.")
-#         return df
-#     except Exception as e:
-#         logging.error(f"Failed to generate and validate stats: {e}")
-#         raise
+        # # Stats
+        # data_stats = tfdv.generate_statistics_from_dataframe(df)
+        # tfdv.visualize_statistics(data_stats)
+        
+        # logging.info("Pushing data splits to XCom.")
+        # ti.xcom_push(key='schema', value=schema)
+        # ti.xcom_push(key='stats', value=data_stats)
+        return df
+    except Exception as e:
+        logging.error(f"Failed to generate and validate scheme: {e}")
+        raise
 
-# def generate_and_validate_example_gen(df):
-#     """
-#     Placeholder function for generating and validating example generator.
-#     """
-#     try:
-#         logging.info("Generating and validating example generator.")
-#         return df
-#     except Exception as e:
-#         logging.error(f"Failed to generate and validate example generator: {e}")
-#         raise
+def calculate_and_display_anomalies(df, ti):
+    '''
+    Calculate and display anomalies.
+
+            Parameters:
+                    statistics : Data statistics in statistics_pb2.DatasetFeatureStatisticsList format
+                    schema : Data schema in schema_pb2.Schema format
+
+            Returns:
+                    display of calculated anomalies
+    '''
+    try:
+        logging.info("Calculating and Displaying Anomalies")
+        # schema = ti.xcom_pull(task_ids='generate_scheme_and_stats', key='schema')
+        # statistics = ti.xcom_pull(task_ids='generate_scheme_and_stats', key='statistics')
+        # anomalies = tfdv.validate_statistics(schema=schema, statistics=statistics)
+        # tfdv.display_anomalies(anomalies=anomalies)
+        return df
+    except Exception as e:
+        logging.error(f"Failed to generate and validate example generator: {e}")
+        raise

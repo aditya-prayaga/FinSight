@@ -106,59 +106,60 @@ handle_outliers_in_test_data_task = PythonOperator(
 )
 handle_missing_values_in_test_data_task.set_downstream(handle_outliers_in_test_data_task)
 
-generate_and_validate_scheme_training_task = PythonOperator(
-    task_id='generate_and_validate_scheme_training',
-    python_callable=generate_and_validate_scheme,
+##
+generate_scheme_and_stats_training_task = PythonOperator(
+    task_id='generate_scheme_and_stats_training',
+    python_callable=generate_scheme_and_stats,
     provide_context=True,
     op_args=[handle_outliers_in_training_data_task.output],
     dag=dag,
 )
-handle_outliers_in_training_data_task.set_downstream(generate_and_validate_scheme_training_task)
+handle_outliers_in_training_data_task.set_downstream(generate_scheme_and_stats_training_task)
 
-generate_and_validate_scheme_eval_task = PythonOperator(
-    task_id='generate_and_validate_scheme_eval',
-    python_callable=generate_and_validate_scheme,
+generate_scheme_and_stats_eval_task = PythonOperator(
+    task_id='generate_scheme_and_stats_eval',
+    python_callable=generate_scheme_and_stats,
     provide_context=True,
     op_args=[handle_outliers_in_evaluation_data_task.output],
     dag=dag,
 )
-handle_outliers_in_evaluation_data_task.set_downstream(generate_and_validate_scheme_eval_task)
+handle_outliers_in_evaluation_data_task.set_downstream(generate_scheme_and_stats_eval_task)
 
-generate_and_validate_scheme_test_task = PythonOperator(
-    task_id='generate_and_validate_scheme_test',
-    python_callable=generate_and_validate_scheme,
+generate_scheme_and_stats_test_task = PythonOperator(
+    task_id='generate_scheme_and_stats_test',
+    python_callable=generate_scheme_and_stats,
     provide_context=True,
     op_args=[handle_outliers_in_test_data_task.output],
     dag=dag,
 )
-handle_outliers_in_test_data_task.set_downstream(generate_and_validate_scheme_test_task)
+handle_outliers_in_test_data_task.set_downstream(generate_scheme_and_stats_test_task)
 
-generate_and_validate_training_stats_task = PythonOperator(
-    task_id='generate_and_validate_training_stats',
-    python_callable=generate_and_validate_stats,
+calculate_and_display_anomalies_training_task = PythonOperator(
+    task_id='calculate_and_display_anomalies_training',
+    python_callable=calculate_and_display_anomalies,
     provide_context=True,
-    op_args=[generate_and_validate_scheme_training_task.output],
+    op_args=[generate_scheme_and_stats_training_task.output],
     dag=dag,
 )
-generate_and_validate_scheme_training_task.set_downstream(generate_and_validate_training_stats_task)
+generate_scheme_and_stats_training_task.set_downstream(calculate_and_display_anomalies_training_task)
 
-generate_and_validate_eval_stats_task = PythonOperator(
-    task_id='generate_and_validate_eval_stats',
-    python_callable=generate_and_validate_stats,
+calculate_and_display_anomalies_eval_task = PythonOperator(
+    task_id='calculate_and_display_anomalies_eval',
+    python_callable=calculate_and_display_anomalies,
     provide_context=True,
-    op_args=[generate_and_validate_scheme_eval_task.output],
+    op_args=[generate_scheme_and_stats_eval_task.output],
     dag=dag,
 )
-generate_and_validate_scheme_eval_task.set_downstream(generate_and_validate_eval_stats_task)
+generate_scheme_and_stats_eval_task.set_downstream(calculate_and_display_anomalies_eval_task)
 
-generate_and_validate_test_stats_task = PythonOperator(
-    task_id='generate_and_validate_stats',
-    python_callable=generate_and_validate_stats,
+calculate_and_display_anomalies_test_task = PythonOperator(
+    task_id='calculate_and_display_anomalies_test',
+    python_callable=calculate_and_display_anomalies,
+    op_args=[generate_scheme_and_stats_test_task.output],
     provide_context=True,
-    op_args=[generate_and_validate_scheme_test_task.output],
     dag=dag,
 )
-generate_and_validate_scheme_test_task.set_downstream(generate_and_validate_test_stats_task)
+generate_scheme_and_stats_test_task.set_downstream(calculate_and_display_anomalies_test_task)
 
 ##
 
@@ -166,41 +167,32 @@ apply_transformation_training_task = PythonOperator(
     task_id='apply_transformation_training',
     python_callable=apply_transformation,
     provide_context=True,
-    op_args=[generate_and_validate_training_stats_task.output],
+    op_args=[calculate_and_display_anomalies_training_task.output],
     dag=dag,
 )
-generate_and_validate_training_stats_task.set_downstream(apply_transformation_training_task)
+calculate_and_display_anomalies_training_task.set_downstream(apply_transformation_training_task)
 
 apply_transformation_eval_task = PythonOperator(
     task_id='apply_transformation_eval',
     python_callable=apply_transformation,
     provide_context=True,
-    op_args=[generate_and_validate_eval_stats_task.output],
+    op_args=[calculate_and_display_anomalies_eval_task.output],
     dag=dag,
 )
-generate_and_validate_eval_stats_task.set_downstream(apply_transformation_eval_task)
+calculate_and_display_anomalies_eval_task.set_downstream(apply_transformation_eval_task)
 
 apply_transformation_test_task = PythonOperator(
     task_id='apply_transformation_test',
     python_callable=apply_transformation,
     provide_context=True,
-    op_args=[generate_and_validate_test_stats_task.output],
+    op_args=[calculate_and_display_anomalies_test_task.output],
     dag=dag,
 )
-generate_and_validate_test_stats_task.set_downstream(apply_transformation_test_task)
+calculate_and_display_anomalies_test_task.set_downstream(apply_transformation_test_task)
 
 
 
-
-
-# generate_and_validate_example_gen_task = PythonOperator(
-#     task_id='generate_and_validate_example_gen',
-#     python_callable=generate_and_validate_example_gen,
-#     provide_context=True,
-#     op_args=[handle_outliers_in_training_data_task.output],
-#     dag=dag,
-# )
-
+# 
 
 visualize_training_refined_data_task = PythonOperator(
     task_id='visualize_training_refined_data',
