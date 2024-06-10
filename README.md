@@ -78,40 +78,58 @@ This is the initial Pipeline For which later Test tasks in airflow and Github ac
 
 ![x](./images/data-pipeline.png)
 
-download_and_uploadToDVCBucket_task:
+### download_and_uploadToDVCBucket_task:
+
 Purpose: Downloads the latest stock data from configured financial data APIs and uploads it to a DVC-managed bucket in Google Cloud Storage.
+
 Data Handling: Ensures data integrity and version control right from the start of the pipeline.
 
-visualize_raw_data_task:
+### visualize_raw_data_task:
+
 Purpose: Generates initial visualizations of the raw data to provide insights into its distribution and potential issues that may need addressing in preprocessing.
+
 Tools Used: Python libraries such as Matplotlib or Seaborn are used for generating plots which are then logged or stored within the project's visualization directory.
 
-divide_train_eval_test_splits_task:
+### divide_train_eval_test_splits_task:
+
 Purpose: Splits the data into training, evaluation, and testing datasets to ensure a proper distribution for machine learning modeling.
+
 Implementation: Typically involves random splits while ensuring a balanced representation of data characteristics across each set.
 
-handle_missing_values_task:
+### handle_missing_values_task:
+
 Purpose: Applies strategies to handle missing data, which may include imputation techniques or removal of rows/columns based on predefined thresholds.
+
 Flexibility: Configurable to adapt different strategies based on the nature of the data and the predictive modeling requirements.
 
-handle_outliers_in_*_data_task (for each dataset split):
+### handle_outliers_in_*_data_task (for each dataset split):
+
 Purpose: Detects and handles outliers in the data which could potentially skew the results of the predictive models.
+
 Techniques Used: May include statistical methods like Z-scores, IQR or domain-specific heuristics.
 
-generate_scheme_and_stats_*_task (for each dataset split):
+### generate_scheme_and_stats_*_task (for each dataset split):
+
 Purpose: Generates a schema for the dataset and calculates statistics to understand the data’s underlying patterns and ensure it meets the expected formats and distributions.
+
 Tools Used: TensorFlow Data Validation (TFDV) is commonly employed for this purpose, providing detailed reports and visualizations.
 
-calculate_and_display_anomalies_*_task (for each dataset split):
+### calculate_and_display_anomalies_*_task (for each dataset split):
+
 Purpose: Identifies any anomalies in the data sets using the schema and statistics generated in the previous steps.
+
 Outcome: Anomalies are logged and visualized; alerts could be triggered based on the severity to ensure prompt attention by the data team.
 
-apply_transformation_*_task (for each dataset split):
+### apply_transformation_*_task (for each dataset split):
+
 Purpose: Applies necessary transformations to the data, which could include scaling, normalization, or feature engineering to enhance model performance.
+
 Customization: Transformations are defined based on the predictive model requirements and the specific characteristics of the stock data.
 
-visualize_*_refined_data_task (for each dataset split):
+### visualize_*_refined_data_task (for each dataset split):
+
 Purpose: Provides visualizations of the processed data to confirm that the intended transformations have been applied correctly.
+
 Review: These visualizations help in the qualitative review of the data before it is fed into machine learning models.
 
 
