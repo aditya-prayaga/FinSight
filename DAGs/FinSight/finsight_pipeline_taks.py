@@ -10,6 +10,9 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 
 from FinSight.finsight_pipeline_functions import *
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 # Enable pickle support for XCom, allowing data to be passed between tasks
 conf.set('core', 'enable_xcom_pickling', 'True')
 
