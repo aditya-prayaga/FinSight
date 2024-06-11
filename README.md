@@ -14,7 +14,6 @@ Adaptive Stock Prediction and Monitoring Pipeline
 10. [Pipeline Optimization](#pipeline-optimization)
 11. [Schema and Statistics Generation](#schema-and-statistics-generation)
 12. [Anomalies Detection and Alerts](#anomalies-detection-and-alerts)
-13. [Conclusion](#conclusion)
 
 ### Introduction
 This project demonstrates a comprehensive pipeline for processing stock data and making a prediction. It includes data preprocessing, testing, workflow orchestration with Apache Airflow, data versioning with DVC, schema generation, and anomaly detection. The project is documented to ensure replication on other machines.
@@ -24,6 +23,8 @@ This Project will be designed to be robust in both development and production se
 
 1. ```dev``` for local development version with local storage & deployment
 2. ```main``` for production ready version with Google storage & deployment lined with google cloud composer environment
+    - GCS: https://console.cloud.google.com/storage/browser/us-central1-composer-65578e5b-bucket/dags;tab=objects?authuser=1&project=mlops-425015&supportedpurview=project&prefix=&forceOnObjectsSortingFiltering=false
+    - Cloud Composer: https://console.cloud.google.com/composer/environments/detail/us-central1/composer/monitoring?referrer=search&authuser=1&project=mlops-425015&supportedpurview=project
 3. Separated DAG tasks and its associated functions in 2 files namely ```finsight_pipeline_functions.py, finsight_pipeline_taks.py```
 
 ```
@@ -50,6 +51,9 @@ This Project will be designed to be robust in both development and production se
 - Apache Airflow 2.5+
 - Google Cloud Services
 - TensorFlow, scikit-learn, DVC
+    - **Note**: tensorflow-data-validation & pip in airflow doesn't sync
+    - when tried to bundling it with in image pip doesn't work.
+    - functions in tfdv work independently.
 - Google Cloud SDK (for GCS integration)
 
 ### Installation
