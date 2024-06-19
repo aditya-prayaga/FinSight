@@ -1,0 +1,8 @@
+# name: Sync Airflow DAGs to Google Cloud Composer
+# uses: cristian-rincon/action-composer-sync@v0.1.0
+# with:
+#     GOOGLE_APPLICATION_CREDENTIALS: "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}"
+#     PROJECT_ID: "${{ secrets.PROJECT_ID }}"
+#     ENVIRONMENT: "${{ secrets.ENVIRONMENT }}"
+#     LOCATION: "${{ secrets.LOCATION }}"
+#     DAG_NAME: "${{ secrets.DAG_NAME }}"
