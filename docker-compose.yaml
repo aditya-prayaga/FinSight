@@ -49,10 +49,10 @@ x-airflow-common:
   # In order to add custom dependencies or upgrade provider packages you can use your extended image.
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
-  # build:
-  #   context: .
-  #   dockerfile: Dockerfile.airflow
-  image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.9.1}
+  build:
+    context: .
+    dockerfile: Dockerfile.airflow
+  # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.9.1}
   # build: .
   
   environment:
@@ -65,15 +65,23 @@ x-airflow-common:
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
-    # yamllint disable rule:line-length
+    AIRFLOW__EMAIL__EMAIL_BACKEND: airflow.utils.email.send_email_smtp
+    AIRFLOW__EMAIL__FROM_EMAIL: "Aditya Sai Saandeep Prayaga <prayaga.a@northeastern.edu>"
+    # AIRFLOW__SMTP__SMTP_HOST: smtp.sendgrid.net
+    # AIRFLOW__SMTP__SMTP_STARTTLS: False
+    # AIRFLOW__SMTP__SMTP_SSL: False
+    # AIRFLOW__SMTP__SMTP_USER: apikey
+    # AIRFLOW__SMTP__SMTP_PASSWORD: <generated-api-key>
+    # AIRFLOW__SMTP__SMTP_PORT: 587
+    # AIRFLOW__SMTP__SMTP_MAIL_FROM=<your-from-email>    # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
     # yamllint enable rule:line-length
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     # WARNING: Use _PIP_ADDITIONAL_REQUIREMENTS option ONLY for a quick checks
     # for other purpose (development, test and especially production usage) build/extend Airflow image.
-    # tensorflow==2.8.0 tensorflow-data-validation==1.5.0 
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:- pandas scikit-learn kneed yfinance gcsfs google matplotlib logging mlflow torch torchsummary optuna}
+    # tensorflow==2.8.0 tensorflow-data-validation==1.5.0 pandas scikit-learn kneed yfinance gcsfs google matplotlib logging mlflow torch torchsummary optuna pathlib flask
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
     # The following line can be used to set a custom config file, stored in the local config folder
     # If you want to use it, outcomment it and replace airflow.cfg with the name of your config file
     # AIRFLOW_CONFIG: '/home/ramin/airflow/airflow.cfg'
@@ -83,6 +91,8 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/config:/home/ramin/Documents/Teaching/IE7374-MLOPS/Labs/MLOps/Labs/Airflow_Labs/Lab_1/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/plugins:/opt/airflow/plugins
     - ${AIRFLOW_PROJ_DIR:-.}/model:/opt/airflow/model
+    - ${AIRFLOW_PROJ_DIR:-.}/mlruns:/opt/airflow/mlruns
+    - ${AIRFLOW_PROJ_DIR:-.}/visualizations:/opt/airflow/visualizations
     - ${AIRFLOW_PROJ_DIR:-.}/working_data:/home/ramin/Documents/Teaching/IE7374-MLOPS/Labs/MLOps/Labs/Airflow_Labs/Lab_1/working_data
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
@@ -127,6 +137,7 @@ services:
     command: webserver
     ports:
       - "8080:8080"
+      - "5001:5001"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s
@@ -294,14 +305,19 @@ services:
         condition: service_completed_successfully
 
   mlflow-server:
-    # <<: *airflow-common
-    # image: x-airflow-common
+    # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.9.1}
     build:
       context: .
       dockerfile: Dockerfile.mlflow
     environment:
       MLFLOW_TRACKING_URI: http://localhost:5000
-      MLFLOW_ARTIFACT_URI: file:/mlflow/artifacts
+      MLFLOW_ARTIFACT_URI: /mlruns/artifacts
+      MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING: true
+    command: >
+      mlflow server --backend-store-uri sqlite:///mlflow.db 
+                    --default-artifact-root /mlflow/artifacts 
+                    --artifacts-destination /mlflow/artifacts 
+                    --host 0.0.0.0
     ports:
       - "5000:5000"
     volumes:
@@ -313,6 +329,27 @@ services:
     #   airflow-init:
     #     condition: service_completed_successfully
 
+  # predict-endpoint-server:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.predict-endpoint-server
+  #   ports:
+  #     - "5002:5002"
+  #   volumes:
+  #     - ./model:/model
+  #   command: /bin/bash -c " \
+  #     shopt -s nullglob && \
+  #     while true; do \
+  #       model_files=(/model/*.h5); \
+  #       if [ \${#model_files[@]} -gt 0 ]; then \
+  #         echo 'Model file(s) found, starting server...'; \
+  #         echo 'Run Here' \
+  #         break; \
+  #       else \
+  #         echo 'Model file not found, checking again in 5 seconds...'; \
+  #         sleep 5; \
+  #       fi; \
+  #     done"
 
 volumes:
   mlruns:
