@@ -2,21 +2,23 @@ import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import logging
 import mlflow
-from mlflow.data.pandas_dataset import PandasDataset
-from keras.layers import LSTM, Dropout, Dense
-from keras.optimizers import Adam
-from keras.losses import MeanSquaredError
-from keras.callbacks import EarlyStopping
-from keras.models import Sequential, load_model
 import numpy as np
 import optuna
 import time
 from functools import partial
 import os
-from flask import Flask, jsonify, request, redirect, render_template
+from keras.models import load_model
+from functools import partial
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dropout, Dense
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.losses import MeanSquaredError
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras import metrics
+from FinSight.model import *
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -56,7 +58,7 @@ def download_and_uploadToDVCBucket(ticker_symbol, start_date, end_date, ti):
         mlflow.log_param("end_date", end_date)
         
         stock_data = yf.download(ticker_symbol, start=start_date, end=end_date)
-        filename = os.path.abspath(os.path.join(os.getcwd(), "mlruns","artifacts")) + "/" + f"{ticker_symbol}_stock_data_{start_date}_{end_date}.csv"
+        filename = os.path.abspath(os.path.join(os.getcwd())) + "/" + f"{ticker_symbol}_stock_data_{start_date}_{end_date}.csv"
         
         # Save stock data to CSV
         stock_data.to_csv(filename)
@@ -72,8 +74,7 @@ def download_and_uploadToDVCBucket(ticker_symbol, start_date, end_date, ti):
         # mlflow.log_artifact(filename)
         
         # Push the stock_data to XCom
-        ti.xcom_push(key='stock_data', value=stock_data)
-
+        # ti.xcom_push(key='stock_data', value=stock_data)
         # Log dataset information
         # mlflow.log_input(name=os.path.basename(filename), context="dataset", path=filename)
 
@@ -83,8 +84,10 @@ def download_and_uploadToDVCBucket(ticker_symbol, start_date, end_date, ti):
         raise
     finally:
         mlflow.end_run()
+        return stock_data
+    
 
-def visualize_raw_data(ti):
+def visualize_raw_data(stock_data,file_path):
     """
     Read stock data from a CSV file and visualize it, saving the plot to a specified GCS location.
     """
@@ -93,8 +96,8 @@ def visualize_raw_data(ti):
     try:
         # logging.info(f"Reading data from {file_path}")
         # Pull the DataFrame from XCom
-        stock_data_dict = ti.xcom_pull(task_ids='download_upload_data', key='stock_data')
-        df = pd.DataFrame(stock_data_dict)
+        # stock_data_dict = ti.xcom_pull(task_ids='download_upload_data', key='stock_data')
+        df = pd.DataFrame(stock_data)
 
         logging.info("Converting 'Date' column to datetime format and setting it as index.")
         df['Date'] = df.index
@@ -127,76 +130,15 @@ def visualize_raw_data(ti):
 
         plt.tight_layout(rect=[0, 0, 1, 0.96])
         
-        plt.savefig("/opt/airflow/visualizations/data1-viz.png")
-        # return df
-        # with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
-        #     tmp_file_name = tmp_file.name
-        #     plt.savefig(tmp_file_name)
-        #     plt.close()
-        
-        # logging.info(f"Uploading plot to GCS.")
-        # storage_client = storage.Client()
-        # bucket_name = "data_finsight"
-        # destination_blob_name = 'data-viz/data-viz.png'
-        
-        # bucket = storage_client.bucket(bucket_name)
-        # blob = bucket.blob(destination_blob_name)
-        # blob.upload_from_filename(tmp_file_name)
-        
-        # os.remove(tmp_file_name)
-
-        # logging.info(f"Plot saved to 'gs://{bucket_name}/{destination_blob_name}'")
+        plt.savefig(file_path)
     except Exception as e:
         logging.error(f"Failed to visualize Raw data: {e}")
         raise
     finally:
         mlflow.end_run()
+        return df
 
-def get_retrain_dataset(ticker_symbol, start_date, end_date, ti):
-
-    mlflow.start_run(run_name="Retraining")
-    time.sleep(15)
-    try:
-        logging.info("Starting Retraining")
-
-        # download_and_uploadToDVCBucket(ticker_symbol, start_date, end_date, ti)
-
-        # stock_data_dict = ti.xcom_pull(task_ids='download_upload_data', key='stock_data')
-        # df = pd.DataFrame(stock_data_dict)
-
-        # handle_missing_values(df)
-
-        # handle_outliers(df)
-
-        # apply_transformation(df,ti)
-
-        # generate_scheme_and_stats(df,ti)
-
-        # detect_anomalies(df, generate_schema(df), generate_statistics(df))
-
-        # calculate_and_display_anomalies(df, scheme, stats)
-
-        # divide_train_eval_test_splits(file_path, test_size=0.2, eval_size=0.1, random_state=42, ti=None)
-
-        # divide_features_and_labels(train_df, eval_df, test_df, ti)
-
-        # objective(trial, x, y)
-
-        # hyper_parameter_tuning(x,y)
-
-        # training(best_params, x, y)
-
-        # load_and_predict(best_params, x, file_path,ti)
-
-        # evaluate_and_visualize(predictions, y, ti, save_path='actual_vs_predicted.png')
-
-    except Exception as e:
-        logging.error(f"Failed to Retrain: {e}")
-        raise
-    finally:
-        mlflow.end_run()
-
-def divide_train_eval_test_splits(file_path, test_size=0.2, eval_size=0.1, random_state=42, ti=None):
+def divide_train_eval_test_splits(df,ti):
     """
     - file_path (str): Path to the CSV file containing stock data.
     - test_size (float): Proportion of the dataset to include in the test split.
@@ -212,9 +154,8 @@ def divide_train_eval_test_splits(file_path, test_size=0.2, eval_size=0.1, rando
     time.sleep(15)
     # mlflow.log_params(test_size,eval_size,random_state)
     try:
-        logging.info(f"Reading data from {file_path}")
-        df = ti.xcom_pull(task_ids='download_upload_data', key='stock_data') #pd.read_csv(file_path)
-        # dataset: PandasDataset = mlflow.data.from_pandas(df, source=file_path)
+        # logging.info(f"Reading data from {file_path}")
+        # df = ti.xcom_pull(task_ids='download_upload_data', key='stock_data') #pd.read_csv(file_path)
 
         df = df['Open'].values
 
@@ -231,9 +172,9 @@ def divide_train_eval_test_splits(file_path, test_size=0.2, eval_size=0.1, rando
         logging.info("Further splitting train+eval set into train and eval sets.")
         # train_df, eval_df = train_test_split(train_eval_df, test_size=eval_size, random_state=random_state)
 
-        train_dataset = mlflow.data.from_numpy(train_df, source=file_path)
-        eval_dataset = mlflow.data.from_numpy(eval_df, source=file_path)
-        test_dataset = mlflow.data.from_numpy(test_df, source=file_path)
+        train_dataset = mlflow.data.from_numpy(train_df)
+        eval_dataset = mlflow.data.from_numpy(eval_df)
+        test_dataset = mlflow.data.from_numpy(test_df)
 
         mlflow.log_input(train_dataset, context="training")
         mlflow.log_input(eval_dataset, context="Eval") 
@@ -243,8 +184,6 @@ def divide_train_eval_test_splits(file_path, test_size=0.2, eval_size=0.1, rando
         eval_df = pd.DataFrame(eval_df)
         test_df = pd.DataFrame(test_df)
 
-
-        
 
         logging.info("Pushing data splits to XCom.")
         ti.xcom_push(key='train', value=train_df)
@@ -316,19 +255,52 @@ def handle_outliers(df):
         mlflow.end_run()
 
 
-def visualize_df(df):
+def visualize_df(df, file_path):
     """
-    Placeholder function for visualizing DataFrame.
+    Visualize the preprocessed DataFrame, saving the plot to a specified location.
     """
     mlflow.start_run(run_name="Visualize Preprocessed Data")
     try:
         logging.info("Visualizing DataFrame.")
-        return df
+        
+        # Create a new DataFrame from the input
+        df = pd.DataFrame(df)
+
+        plt.figure(figsize=(14, 10))
+        plt.suptitle('Preprocessed Data Visualizations', fontsize=16)
+
+        # Line plot
+        plt.subplot(3, 1, 1)
+        plt.plot(df.index, df.iloc[:, 0], label='Preprocessed Data', color='blue')
+        plt.title('Preprocessed Data Over Time')
+        plt.xlabel('Index')
+        plt.ylabel('Value')
+        plt.legend()
+
+        # Histogram
+        plt.subplot(3, 1, 2)
+        plt.hist(df.iloc[:, 0], bins=30, color='green', edgecolor='black')
+        plt.title('Distribution of Preprocessed Data')
+        plt.xlabel('Value')
+        plt.ylabel('Frequency')
+
+        # Box plot
+        plt.subplot(3, 1, 3)
+        plt.boxplot(df.iloc[:, 0], vert=False, patch_artist=True, boxprops=dict(facecolor='red'))
+        plt.title('Box Plot of Preprocessed Data')
+        plt.xlabel('Value')
+
+        plt.tight_layout(rect=[0, 0, 1, 0.96])
+        
+        plt.savefig(file_path)
+        plt.show()
+
     except Exception as e:
         logging.error(f"Failed to visualize DataFrame: {e}")
         raise
     finally:
         mlflow.end_run()
+        return df
 
 
 def apply_transformation(df,ti):
@@ -348,12 +320,12 @@ def apply_transformation(df,ti):
         df= scaler.fit_transform(df)
         df = pd.DataFrame(df)
         ti.xcom_push(key='scalar', value=scaler)
-        return df
     except Exception as e:
         logging.error(f"Failed to apply transformations: {e}")
         raise
     finally:
         mlflow.end_run()
+        return df
 
 def apply_transformation_eval_test(df,ti):
     """
@@ -372,12 +344,13 @@ def apply_transformation_eval_test(df,ti):
         df = scaler.transform(df)        
         df = pd.DataFrame(df)
         ti.xcom_push(key='scalar', value=scaler)
-        return df
+
     except Exception as e:
         logging.error(f"Failed to apply transformations: {e}")
         raise
     finally:
         mlflow.end_run()
+        return df
 
 def generate_schema(df):
     """
@@ -620,23 +593,18 @@ def objective(trial, x , y):
         # y_eval = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
 
         # Create the model
-        model = Sequential()
-        for _ in range(num_layers):
-            model.add(LSTM(units=units, return_sequences=True, input_shape=(x_train.shape[1], 1)))
-            model.add(Dropout(rate=dropout_rate))
-        model.add(LSTM(units=units))
-        model.add(Dropout(rate=dropout_rate))
-        model.add(Dense(units=1))
+        model = Model()
+        model.hyperparameter_layers(units=units,num_layers=num_layers,dropout_rate=dropout_rate,input_shape=(x_train.shape[1], 1))
 
         # Compile the model
-        model.compile(optimizer=Adam(learning_rate=learning_rate), loss=MeanSquaredError())
+        model.get_model("hyperparameter").compile(optimizer=Adam(learning_rate=learning_rate), loss=MeanSquaredError())
 
         # Train the model
         early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
-        model.fit(x_train, y_train, validation_data=(x_eval, y_eval), epochs=10, batch_size=batch_size, callbacks=[early_stopping], verbose=0)
+        model.get_model("hyperparameter").fit(x_train, y_train, validation_data=(x_eval, y_eval), epochs=1, batch_size=batch_size, callbacks=[early_stopping], verbose=0)
 
         # Evaluate the model
-        val_loss = model.evaluate(x_eval, y_eval, verbose=0)
+        val_loss = model.get_model("hyperparameter").evaluate(x_eval, y_eval, verbose=0)
 
     except Exception as e:
         logging.error(f"Error in Objective Function: {e}")
@@ -698,35 +666,26 @@ def training(best_params, x, y):
         x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
             
         # Create the model
-        model = Sequential()
-        # for _ in range(best_params['num_layers']):
-        model.add(LSTM(units=best_params['units'], return_sequences=True, input_shape=(x_train.shape[1], 1)))
-        model.add(Dropout(rate=best_params['dropout_rate']))
-        model.add(LSTM(units=best_params['units'], return_sequences=True))
-        model.add(Dropout(rate=best_params['dropout_rate']))
-        model.add(LSTM(units=best_params['units'], return_sequences=True))
-        model.add(Dropout(rate=best_params['dropout_rate']))
-        model.add(LSTM(units=best_params['units']))
-        model.add(Dropout(rate=best_params['dropout_rate']))
-        model.add(Dense(units=1))
+        model = Model()
+        model.create_training_layers(best_params=best_params,input_shape=(x_train.shape[1], 1))
 
-        model.summary()
+        model.get_model("training").summary()
 
         # Compile the model
-        model.compile(loss='mean_squared_error', optimizer='adam')
+        model.get_model("training").compile(optimizer=Adam(learning_rate=best_params["learning_rate"]),loss=MeanSquaredError(), metrics=[metrics.MeanSquaredError(), metrics.AUC()])
 
         # Log parameters with MLflow
         mlflow.log_params(best_params)
 
         # Train the model
         # early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
-        model.fit(x_train, y_train, epochs=1, batch_size=best_params["batch_size"], verbose=1)
+        model.get_model("training").fit(x_train, y_train, epochs=1, batch_size=best_params["batch_size"], verbose=1)
 
         # Save the model with MLflow
         # mlflow.keras.log_model(model, "model")
 
-        output_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "model", 'best_stock_prediction.h5')
-        model.save(output_path)
+        output_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "model", 'trained_stock_prediction.h5')
+        model.get_model("training").save(output_path)
 
     except Exception as e:
         logging.error(f"Error in Training: {e}")
@@ -794,37 +753,26 @@ def evaluate_and_visualize(predictions, y, ti, save_path='/opt/airflow/visualiza
         plt.savefig(save_path)
         plt.show()
 
-        # Calculate evaluation metrics
-        mae = mean_absolute_error(y_test_actual, predictions)
-        mse = mean_squared_error(y_test_actual, predictions)
-        rmse = np.sqrt(mse)
-        r2 = r2_score(y_test_actual, predictions)
-
-
-        print(f'Mean Absolute Error (MAE): {mae}')
-        print(f'Mean Squared Error (MSE): {mse}')
-        print(f'Root Mean Squared Error (RMSE): {rmse}')
-        print(f'R-squared (R2 ): {r2}')
     except Exception as e:
         logging.error(f"Error in Evaluate and Visualize: {e}")
         raise
     finally:
         mlflow.end_run()
  
-# Lets create a Flask API to show sucess or failure of the main dag
-app = Flask(__name__)
+# # Lets create a Flask API to show sucess or failure of the main dag
+# app = Flask(__name__)
 
-# Function to start Flask app
-def start_flask_app():
-    app.run(host='0.0.0.0', port=5001)
+# # Function to start Flask app
+# def start_flask_app():
+#     app.run(host='0.0.0.0', port=5001)
 
-# Flask routes
-@app.route('/predict', methods=['POST'])
-def predict():
-    data = request.get_json()  # Get data as JSON
-    Open = float(data['Open'])
-    Close = float(data['Close'])
-    # petal_length = float(data['petal_length'])
-    # petal_width = float(data['petal_width'])
+# # Flask routes
+# @app.route('/predict', methods=['POST'])
+# def predict():
+#     data = request.get_json()  # Get data as JSON
+#     Open = float(data['Open'])
+#     Close = float(data['Close'])
+#     # petal_length = float(data['petal_length'])
+#     # petal_width = float(data['petal_width'])
 
-    print(Open, Close)
+#     print(Open, Close)
