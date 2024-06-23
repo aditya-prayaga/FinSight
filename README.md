@@ -329,6 +329,10 @@ For each DataFrame, it constructs the **feature** vectors from the previous 50 t
 ![alt text](images/system-profiling-metrics.png)
 - **Model Saving:** The trained model is saved to a specified path for future use.
 
+
+- Saved Models to local path and also can use MlFlow for saving Models in the registry. Currently **TA Rishab** and I are working on a bypass for this open Mlflow artifact issue: (https://github.com/mlflow/mlflow/issues/10240)
+
+
 ### Load and Predict
  - We Use above Saved to predict and plot graph to compare and visualize the performance.
 

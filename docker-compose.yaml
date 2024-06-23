@@ -71,7 +71,7 @@ x-airflow-common:
     # AIRFLOW__SMTP__SMTP_STARTTLS: True
     # AIRFLOW__SMTP__SMTP_SSL: False
     # AIRFLOW__SMTP__SMTP_USER: adityasaiprayaga@gmail.com
-    # AIRFLOW__SMTP__SMTP_PASSWORD: "dkit yjac pcyu ojqb" #${MAIL_PASS}
+    # AIRFLOW__SMTP__SMTP_PASSWORD: #${MAIL_PASS}
     AIRFLOW__SMTP__SMTP_PORT: 587    # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
     # yamllint enable rule:line-length
