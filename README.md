@@ -23,16 +23,26 @@ Adaptive Stock Prediction and Monitoring Pipeline
 <!-- 18. [Conclusion](#conclusion) -->
 
 ### Introduction
-This project demonstrates a comprehensive pipeline for processing stock data and making a prediction. It includes data preprocessing, hyper-parameter tuning, modelling and training with MlFlow dashboards, evaluating and testing, workflow orchestration with Apache Airflow, data versioning with DVC, schema generation, and anomaly detection. The project is documented to ensure replication on other machines.
+This section introduces the FinSight project, explaining its purpose, scope, and key features. It highlights the main objectives of the pipeline, such as stock data processing, prediction capabilities, and the technology stack used, including MLflow, Apache Airflow, and DVC. It also mentions the documentation's purpose, which is to facilitate replication and scaling on various machines and environments.
 
 ### Project Structure
-This Project will be designed to be robust in both development and production setup. We Created 2 branches
+This section outlines the directory and file structure of the project, providing a clear map of where different components and resources are located. It describes the roles of different directories and files, such as:
+
+DAGs: Contains Airflow Directed Acyclic Graphs that orchestrate the workflow. 
+Dockerfile: Various Dockerfiles for setting up the required environments for Airflow and MLflow.  
+config: Configuration files and scripts needed to customize and secure the pipeline.  
+data: The location for storing input data and processed outputs.  
+mlruns: MLflow tracking and logging directory for model training sessions.   
+model: Holds the trained model files and serialization formats.  
+
+We Created 2 branches
 
 1. ```dev``` for local development version with local storage & deployment
 2. ```main``` for production ready version with Google storage & deployment lined with google cloud compute service.
 3. Separated DAG tasks and its associated functions in 2 files namely ```finsight_pipeline_functions.py, finsight_pipeline_taks.py```
 
 ```
+
 .
 ├── DAGs
 │   └── FinSight
@@ -133,6 +143,8 @@ The User Installation Steps are as follows:
 
 ### Data Pipeline Workflow
 
+A detailed visualization of the pipeline workflow, showing how data moves through various stages from ingestion to predictions. It should explain each stage's purpose and how they connect. Enhancements here might include links to dynamic visualizations that users can interact with to better understand each component's role.
+
 This is the initial Pipeline For which later Test tasks in airflow and Github action yml file would be added to make a seamless pipeline.
 
 ![x](./images/data-pipeline.png)
@@ -202,6 +214,8 @@ Review: These visualizations help in the qualitative review of the data before i
 ![x](visualizations/processed-data.png)
 
 ### Testing
+Explains the testing framework and practices used in the project, such as unit tests, integration tests, and regression tests. It details how to run tests, interpret results, and integrate these tests into CI/CD pipelines for automated testing and deployment.
+
 1. **Running Tests:** Before running tests, ensure that all dependencies are installed. You can install them using ```pip install pytest, pytest_mock```.
 To run the tests, execute the command pytest in the root directory of the project. This will discover and run all test cases in the project.
 
@@ -223,6 +237,8 @@ Conditional triggering of tasks can be achieved by defining appropriate failure 
 - We used **mlflow's logging mechanism** to log dataset versions & types, model analysis, system level metrics, etc parts of the pipeline.
 
 ### Data Version Control
+Describes the logging mechanism implemented in the project, including what information gets logged, how to access these logs, and how to configure logging levels. It also details how MLflow is used for tracking experiments, parameter tuning, and model performance metrics.
+
 - We handled data version controlling (DVC) by relying on the Google Cloud Storage Object Versioning for Production
 -  We plan to programmatically tackle for local version controlling of data by enabling dvc init & Bash Operator in airflow.
 
@@ -231,6 +247,8 @@ Conditional triggering of tasks can be achieved by defining appropriate failure 
 - For Modelling we plan to use local folder and Mlflow's registry for storing model & would like to extend to Google cloud storage utilization.
 ![x](./images/model-dataset.png)
 ### Pipeline Optimization
+Discusses methods used to optimize the pipeline, such as improving execution times, reducing resource consumption, and ensuring reliability. Techniques might include parallel processing, effective error handling, and smart caching strategies.
+
 To ensure the efficiency and reliability of the pipeline, several optimization strategies can be applied:
 
 1) Parallel Task Execution: Where possible, tasks should be executed in parallel to reduce the overall runtime of the pipeline. Airflow supports parallel task execution by defining independent tasks and setting appropriate dependencies.
@@ -239,7 +257,7 @@ To ensure the efficiency and reliability of the pipeline, several optimization s
 
 ### Schema and Statistics Generation
 
-The generate_scheme_and_stats function is responsible for generating and validating the schema and statistics of the dataset. This process includes:
+Details the tools and techniques used for generating and validating data schemas and statistics. It would typically explain how TensorFlow Data Validation (TFDV) is used to infer schemas, generate descriptive statistics, and visualize data distributions. This process includes:
 
 1) Schema Inference: Using TensorFlow Data Validation (TFDV) to infer the schema of the dataset, which includes data types, ranges, and distributions of features. This schema serves as a baseline for data quality checks.
 2) Statistics Generation: Generating descriptive statistics from the dataset to provide insights into the distribution and characteristics of the data. These statistics are crucial for identifying anomalies and understanding data quality.
