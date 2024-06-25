@@ -137,7 +137,7 @@ The User Installation Steps are as follows:
    user: airflow2
    password: airflow2
    ```
-- - Here we find our ```FinSight_pipeline``` pipeline. We can run (Click Play button) from here itself or click on the pipeline and run from there too.
+- Here we find our ```FinSight_pipeline``` pipeline. We can run (Click Play button) from here itself or click on the pipeline and run from there too.
 
 - Stop docker containers (hit Ctrl + C in the terminal)
 
@@ -245,6 +245,7 @@ Describes the logging mechanism implemented in the project, including what infor
 ![x](./images/dvc.png)
 
 - For Modelling we plan to use local folder and Mlflow's registry for storing model & would like to extend to Google cloud storage utilization.
+  
 ![x](./images/model-dataset.png)
 ### Pipeline Optimization
 Discusses methods used to optimize the pipeline, such as improving execution times, reducing resource consumption, and ensuring reliability. Techniques might include parallel processing, effective error handling, and smart caching strategies.
