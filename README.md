@@ -84,24 +84,52 @@ This Project will be designed to be robust in both development and production se
 - Google Cloud SDK (for GCS integration)
 
 ### Installation
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/aditya-prayaga/FinSight.git
-   cd FinSight
-    ```
-    **Note:** 
-    1. If the user trying to install doesn't have airflow setup/docker setup done, please follow instructions in this [video](https://www.youtube.com/watch?v=exFSeGUbn4Q&t=511s&pp=ygUTcmFtaW4gYWlyZmxvdyBzZXR1cA%3D%3D)
-    2. Please git check out ```dev``` branch to find additional files like ```docker-compose.yaml```, logs etc which help us in deploying the airflow and orchestrate.
+The User Installation Steps are as follows:
 
-2. When you are in the FinSight directory run the initial airflow set up command via running command ```docker compose up airflow-init```. With this we create a user(airflow2) and the initial Db migrations that are necessary
+1. Clone the git repository onto your local machine:
+  ```
+  git clone https://github.com/aditya-prayaga/FinSight.git
+  ```
+2. Check if python version >= 3.8 using this command:
+  ```
+  python --version
+  ```
+3. Check if you have enough memory
+  ```docker
+  docker run --rm "debian:bullseye-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
+  ```
+**If you get the following error, please increase the allocation memory for docker.**
+  ```
+  Error: Task exited with return code -9 or zombie job
+  ```
+4. After cloning the git onto your local directory, please edit the `docker-compose.yaml` with the following changes:
 
-3. Lastly to make the web server up, please run ``` docker compose up```
+  ```yaml
+  user: "1000:0" # This is already present in the yaml file but if you get any error regarding the denied permissions feel free to edit this according to your uid and gid
+  AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com # If you are using other than gmail to send/receive alerts change this according to the email provider.
+  AIRFLOW__SMTP__SMTP_USER: # Enter your email 'don't put in quotes'
+  AIRFLOW__SMTP__SMTP_PASSWORD: # Enter your password here generated from google in app password
+  AIRFLOW__SMTP__SMTP_MAIL_FROM:  # Enter your email
+ - ${AIRFLOW_PROJ_DIR:-.}/dags: #locate your dags folder path here (eg:/dags:/opt/airflow/dags/finsight)
+ - ${AIRFLOW_PROJ_DIR:-.}/logs: #locate your project working directory folder path here (eg:/logs:/opt/airflow/logs)
+ - ${AIRFLOW_PROJ_DIR:-.}/config: #locate the config file from airflow (eg:/opt/airflow/config)
+  ```
+5. In the cloned directory, navigate to the config directory under FINSIGHT and place your key.json file from the GCP service account for handling pulling the data from GCP.
+
+6. Run the Docker composer.
+   ```
+   docker compose up`
 
 ### Usage
 
-- We can access Web server after 3-5 mins of ```docker compose up``` command by visiting site: http://0.0.0.0:8080/home 
+- To view Airflow dags on the web server, visit https://localhost:8080 and log in with credentials
+   ```
+   user: airflow2
+   password: airflow2
+   ```
+- - Here we find our ```FinSight_pipeline``` pipeline. We can run (Click Play button) from here itself or click on the pipeline and run from there too.
 
-- Here we find our DAGS ```FinSight_pipeline```, ```Retrain_FinSight_pipeline``` pipelines. We can run (Click Play button) from here itself or click on the pipeline and run from there too.
+- Stop docker containers (hit Ctrl + C in the terminal)
 
 
 ### Data Pipeline Workflow
