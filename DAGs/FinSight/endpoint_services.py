@@ -12,6 +12,7 @@ import keras
 import logging
 import os
 
+# intiating Flask
 app = Flask(__name__)
 
 # Configure logging
@@ -22,7 +23,7 @@ UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-
+# File management system 
 @app.route('/')
 def hello_world():
     return jsonify(message="Hello, World!")
