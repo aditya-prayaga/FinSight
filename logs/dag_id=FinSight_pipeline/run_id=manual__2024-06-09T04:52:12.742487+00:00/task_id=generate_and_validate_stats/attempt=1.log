@@ -1,0 +1,34 @@
+[2024-06-09T04:52:29.030+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2024-06-09T04:52:29.042+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: FinSight_pipeline.generate_and_validate_stats manual__2024-06-09T04:52:12.742487+00:00 [queued]>
+[2024-06-09T04:52:29.047+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: FinSight_pipeline.generate_and_validate_stats manual__2024-06-09T04:52:12.742487+00:00 [queued]>
+[2024-06-09T04:52:29.050+0000] {taskinstance.py:2306} INFO - Starting attempt 1 of 1
+[2024-06-09T04:52:29.058+0000] {taskinstance.py:2330} INFO - Executing <Task(PythonOperator): generate_and_validate_stats> on 2024-06-09 04:52:12.742487+00:00
+[2024-06-09T04:52:29.063+0000] {warnings.py:110} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:61: DeprecationWarning: This process (pid=2201) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2024-06-09T04:52:29.066+0000] {standard_task_runner.py:63} INFO - Started process 2232 to run task
+[2024-06-09T04:52:29.065+0000] {standard_task_runner.py:90} INFO - Running: ['***', 'tasks', 'run', 'FinSight_pipeline', 'generate_and_validate_stats', 'manual__2024-06-09T04:52:12.742487+00:00', '--job-id', '86', '--raw', '--subdir', 'DAGS_FOLDER/FinSight/finsight_pipeline_taks.py', '--cfg-path', '/tmp/tmpn07dkoz0']
+[2024-06-09T04:52:29.069+0000] {standard_task_runner.py:91} INFO - Job 86: Subtask generate_and_validate_stats
+[2024-06-09T04:52:29.094+0000] {task_command.py:426} INFO - Running <TaskInstance: FinSight_pipeline.generate_and_validate_stats manual__2024-06-09T04:52:12.742487+00:00 [running]> on host bc9e3c56deeb
+[2024-06-09T04:52:29.175+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='Group 2' AIRFLOW_CTX_DAG_ID='FinSight_pipeline' AIRFLOW_CTX_TASK_ID='generate_and_validate_stats' AIRFLOW_CTX_EXECUTION_DATE='2024-06-09T04:52:12.742487+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2024-06-09T04:52:12.742487+00:00'
+[2024-06-09T04:52:29.176+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2024-06-09T04:52:29.183+0000] {finsight_pipeline_functions.py:240} INFO - Generating and validating stats.
+[2024-06-09T04:52:29.183+0000] {python.py:237} INFO - Done. Returned value was:                  Open       High        Low      Close  Adj Close    Volume
+Date                                                                       
+2004-04-07   5.105714   5.194286   5.000000   5.090000   5.090000   8607200
+2009-06-30   5.927143   5.968571   5.701429   5.905714   5.905714  11391800
+2011-07-18  40.351429  40.352856  39.177143  39.857143  39.857143  28844200
+2011-02-09  31.041430  31.997143  31.041430  31.755714  31.755714  28954100
+2002-11-29   0.750000   0.795000   0.742857   0.775000   0.775000    932400
+...               ...        ...        ...        ...        ...       ...
+2008-01-11   3.500000   3.521429   3.344286   3.344286   3.344286   8981700
+2006-01-27   4.072857   4.085714   3.895714   3.974286   3.974286  20804000
+2012-03-28  17.178572  17.285713  16.905714  16.972857  16.972857  22874600
+2002-07-29   0.896429   0.924286   0.850000   0.876429   0.876429   3260600
+2009-03-19   6.064286   6.064286   5.891429   5.930000   5.930000  12115600
+
+[611 rows x 6 columns]
+[2024-06-09T04:52:29.188+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2024-06-09T04:52:29.203+0000] {taskinstance.py:1206} INFO - Marking task as SUCCESS. dag_id=FinSight_pipeline, task_id=generate_and_validate_stats, run_id=manual__2024-06-09T04:52:12.742487+00:00, execution_date=20240609T045212, start_date=20240609T045229, end_date=20240609T045229
+[2024-06-09T04:52:29.248+0000] {local_task_job_runner.py:240} INFO - Task exited with return code 0
+[2024-06-09T04:52:29.254+0000] {local_task_job_runner.py:222} INFO - ::endgroup::

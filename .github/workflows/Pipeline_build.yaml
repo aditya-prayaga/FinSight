@@ -1,0 +1,49 @@
+# name: Sync Airflow DAGs to Google Cloud Composer
+# uses: cristian-rincon/action-composer-sync@v0.1.0
+# with:
+#     GOOGLE_APPLICATION_CREDENTIALS: "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}"
+#     PROJECT_ID: "${{ secrets.PROJECT_ID }}"
+#     ENVIRONMENT: "${{ secrets.ENVIRONMENT }}"
+#     LOCATION: "${{ secrets.LOCATION }}"
+#     DAG_NAME: "${{ secrets.DAG_NAME }}"
+name: Deploy to GCP MIG
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to GCP MIG
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+
+    - name: Authenticate to Google Cloud
+      run: gcloud auth activate-service-account --key-file=${{ secrets.GCP_SA_KEY }}
+
+    # - name: Update GCP Instance Template
+    #   run: |
+    #     TEMPLATE_NAME=my-app-template
+    #     IMAGE_NAME=gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app
+    #     gcloud compute instance-templates create-with-container $TEMPLATE_NAME \
+    #       --container-image=$IMAGE_NAME \
+    #       --region=${{ secrets.GCP_REGION }}
+
+    - name: Rolling Update MIG
+      run: |
+        MIG_NAME=
+        gcloud compute instance-groups managed rolling-action start-update mlops-intance-group-fgd4 \
+          --version=template=mlops-instance-template \
+          --region=us-east1

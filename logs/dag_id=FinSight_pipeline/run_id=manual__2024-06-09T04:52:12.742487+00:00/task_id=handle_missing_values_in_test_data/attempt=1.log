@@ -1,0 +1,61 @@
+[2024-06-09T04:52:22.299+0000] {local_task_job_runner.py:120} INFO - ::group::Pre task execution logs
+[2024-06-09T04:52:22.314+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: FinSight_pipeline.handle_missing_values_in_test_data manual__2024-06-09T04:52:12.742487+00:00 [queued]>
+[2024-06-09T04:52:22.319+0000] {taskinstance.py:2076} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: FinSight_pipeline.handle_missing_values_in_test_data manual__2024-06-09T04:52:12.742487+00:00 [queued]>
+[2024-06-09T04:52:22.319+0000] {taskinstance.py:2306} INFO - Starting attempt 1 of 1
+[2024-06-09T04:52:22.325+0000] {taskinstance.py:2330} INFO - Executing <Task(PythonOperator): handle_missing_values_in_test_data> on 2024-06-09 04:52:12.742487+00:00
+[2024-06-09T04:52:22.333+0000] {warnings.py:110} WARNING - /home/***/.local/lib/python3.12/site-packages/***/task/task_runner/standard_task_runner.py:61: DeprecationWarning: This process (pid=2106) is multi-threaded, use of fork() may lead to deadlocks in the child.
+  pid = os.fork()
+
+[2024-06-09T04:52:22.334+0000] {standard_task_runner.py:63} INFO - Started process 2134 to run task
+[2024-06-09T04:52:22.334+0000] {standard_task_runner.py:90} INFO - Running: ['***', 'tasks', 'run', 'FinSight_pipeline', 'handle_missing_values_in_test_data', 'manual__2024-06-09T04:52:12.742487+00:00', '--job-id', '77', '--raw', '--subdir', 'DAGS_FOLDER/FinSight/finsight_pipeline_taks.py', '--cfg-path', '/tmp/tmpy5mw67pa']
+[2024-06-09T04:52:22.336+0000] {standard_task_runner.py:91} INFO - Job 77: Subtask handle_missing_values_in_test_data
+[2024-06-09T04:52:22.360+0000] {task_command.py:426} INFO - Running <TaskInstance: FinSight_pipeline.handle_missing_values_in_test_data manual__2024-06-09T04:52:12.742487+00:00 [running]> on host bc9e3c56deeb
+[2024-06-09T04:52:22.398+0000] {taskinstance.py:2648} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='Group 2' AIRFLOW_CTX_DAG_ID='FinSight_pipeline' AIRFLOW_CTX_TASK_ID='handle_missing_values_in_test_data' AIRFLOW_CTX_EXECUTION_DATE='2024-06-09T04:52:12.742487+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2024-06-09T04:52:12.742487+00:00'
+[2024-06-09T04:52:22.399+0000] {taskinstance.py:430} INFO - ::endgroup::
+[2024-06-09T04:52:22.421+0000] {finsight_pipeline_functions.py:141} INFO - Handling missing values.
+[2024-06-09T04:52:22.429+0000] {finsight_pipeline_functions.py:142} INFO - Dataset before handling missing values:
+                  Open        High  ...   Adj Close    Volume
+Date                                ...                      
+2018-09-24  359.000000  373.640015  ...  369.609985   9322500
+2020-12-14  505.440002  524.159973  ...  522.419983   5770400
+2016-06-20   95.220001   95.879997  ...   93.800003   9026400
+2004-04-07    5.105714    5.194286  ...    5.090000   8607200
+2009-06-30    5.927143    5.968571  ...    5.905714  11391800
+
+[5 rows x 6 columns]
+[2024-06-09T04:52:22.448+0000] {warnings.py:110} WARNING - /opt/***/dags/FinSight/finsight_pipeline_functions.py:149: FutureWarning: Series.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  df['Open'].fillna(method='ffill', inplace=True)
+
+[2024-06-09T04:52:22.449+0000] {warnings.py:110} WARNING - /opt/***/dags/FinSight/finsight_pipeline_functions.py:153: FutureWarning: DataFrame.fillna with 'method' is deprecated and will raise in a future version. Use obj.ffill() or obj.bfill() instead.
+  df.fillna(method='ffill', inplace=True)
+
+[2024-06-09T04:52:22.452+0000] {finsight_pipeline_functions.py:155} INFO - Dataset after handling missing values:
+                  Open        High  ...   Adj Close    Volume
+Date                                ...                      
+2018-09-24  359.000000  373.640015  ...  369.609985   9322500
+2020-12-14  505.440002  524.159973  ...  522.419983   5770400
+2016-06-20   95.220001   95.879997  ...   93.800003   9026400
+2004-04-07    5.105714    5.194286  ...    5.090000   8607200
+2009-06-30    5.927143    5.968571  ...    5.905714  11391800
+
+[5 rows x 6 columns]
+[2024-06-09T04:52:22.453+0000] {python.py:237} INFO - Done. Returned value was:                   Open        High  ...   Adj Close    Volume
+Date                                ...                      
+2018-09-24  359.000000  373.640015  ...  369.609985   9322500
+2020-12-14  505.440002  524.159973  ...  522.419983   5770400
+2016-06-20   95.220001   95.879997  ...   93.800003   9026400
+2004-04-07    5.105714    5.194286  ...    5.090000   8607200
+2009-06-30    5.927143    5.968571  ...    5.905714  11391800
+...                ...         ...  ...         ...       ...
+2002-07-29    0.896429    0.924286  ...    0.876429   3260600
+2009-03-19    6.064286    6.064286  ...    5.930000  12115600
+2019-03-25  359.000000  367.040009  ...  366.230011   8473800
+2017-01-04  127.489998  130.169998  ...  129.410004   7843600
+2015-09-23   98.599998   99.739998  ...   98.070000  10264500
+
+[1038 rows x 6 columns]
+[2024-06-09T04:52:22.458+0000] {taskinstance.py:441} INFO - ::group::Post task execution logs
+[2024-06-09T04:52:22.474+0000] {taskinstance.py:1206} INFO - Marking task as SUCCESS. dag_id=FinSight_pipeline, task_id=handle_missing_values_in_test_data, run_id=manual__2024-06-09T04:52:12.742487+00:00, execution_date=20240609T045212, start_date=20240609T045222, end_date=20240609T045222
+[2024-06-09T04:52:22.516+0000] {local_task_job_runner.py:240} INFO - Task exited with return code 0
+[2024-06-09T04:52:22.534+0000] {taskinstance.py:3498} INFO - 0 downstream tasks scheduled from follow-on schedule check
+[2024-06-09T04:52:22.535+0000] {local_task_job_runner.py:222} INFO - ::endgroup::
