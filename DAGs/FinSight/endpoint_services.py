@@ -12,78 +12,73 @@ import keras
 import logging
 import os
 
-# intiating Flask
+# Initialize the Flask application
 app = Flask(__name__)
 
-# Configure logging
+# Set up logging to debug level to capture all events
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(message)s')
 
-# Directory to store uploaded files
+# Directory to store uploaded files for prediction
 UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Ensure the upload folder exists
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# File management system 
+# Root endpoint which provides a basic greeting
 @app.route('/')
 def hello_world():
     return jsonify(message="Hello, World!")
 
+# Prediction endpoint which handles file uploads and makes predictions
 @app.route('/predict', methods=['POST'])
 def predict():
+    # Ensure a file is part of the request
     if 'file' not in request.files:
         return jsonify(message='No file part'), 400
 
     file = request.files['file']
+    # Check if the file has a name indicating that a file was indeed uploaded
     if file.filename == '':
         return jsonify(message='No selected file'), 400
 
+    # Process only CSV files for prediction
     if file and file.filename.endswith('.csv'):
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
         file.save(file_path)
         
-        # Read the CSV file into a pandas DataFrame
+        # Load the data from the CSV file into a pandas DataFrame
         df = pd.read_csv(file_path)
-        scaler = joblib.load('./model/scaler.joblib')
+        scaler = joblib.load('./model/scaler.joblib')  # Load the scaler used for normalizing data
         df = np.array(df)
-        df = df.reshape(-1, 1) 
-        df = scaler.transform(df)
+        df = df.reshape(-1, 1)  # Reshape data for scaling
+        df = scaler.transform(df)  # Normalize data
         
+        # Prepare data for prediction by creating sequences of 50 time steps
         x = []
         for i in range(50, df.shape[0]):
-            x.append(df[i-50:i, 0]) 
-        # logger.info(x)
-        x = np.array(x) 
+            x.append(df[i-50:i, 0])
+        x = np.array(x)
+        x = np.reshape(x, (x.shape[0], x.shape[1], 1))  # Reshape for model input
 
-        # logger.info(x)
-        x = np.reshape(x, (x.shape[0], x.shape[1], 1))
-
-        # for filename in os.listdir("./model"):
-            
-            # if filename.endswith('.h5') and 'retrained' in filename:
-            #     model = load_model("./model/" + filename)
-            # else:
+        # Load the model and make predictions
         model = load_model("./model/stock_prediction.h5")
-
-        # logger.info("dsds",x)
-
         predictions = model.predict(x)
-        predictions = scaler.inverse_transform(predictions)
-        logger.info(predictions.shape)
-        logger.info(predictions)
-        
-        list_data = predictions.tolist()
+        predictions = scaler.inverse_transform(predictions)  # Reverse the scaling of predictions
+        list_data = predictions.tolist()  # Convert predictions to list for JSON response
 
         return jsonify(list_data)
 
+# Training endpoint (currently just a placeholder for future implementation)
 @app.route('/train', methods=['POST'])
 def train():
-    data = request.get_json()
+    data = request.get_json()  # Get data from the POST request
     stock_ticker_symbol = data['stock_ticker_symbol']
     start_date = data['start_date']
     end_date = data['end_date']
+    # Respond with a placeholder message
     return jsonify(message="Hello, Train!")
 
-
+# Main function to run the app
 if __name__ == '__main__':
+    # Uncomment below to use waitress server for production
     # serve(app, host="0.0.0.0", port=5002, expose_tracebacks=True)
-    app.run(debug=True, host="0.0.0.0", port=5002)
+    app.run(debug=True, host="0.0.0.0", port=5002)  # Run the Flask app
