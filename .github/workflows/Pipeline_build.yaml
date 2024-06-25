@@ -26,12 +26,18 @@ jobs:
     - name: Set up Google Cloud SDK
       uses: google-github-actions/setup-gcloud@v1
       with:
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        project_id: practical-scion-426716-s2
         service_account_key: ${{ secrets.GCP_SA_KEY }}
         export_default_credentials: true
 
+    - name: Decode GCP Service Account Key
+      run: |
+        echo "${{ secrets.GCP_SA_KEY }}" | base64 --decode > $HOME/gcp-key.json
+      shell: bash
+
     - name: Authenticate to Google Cloud
-      run: gcloud auth activate-service-account --key-file=${{ secrets.GCP_SA_KEY }}
+      run: |
+        gcloud auth activate-service-account --key-file=$HOME/gcp-key.json
 
     # - name: Update GCP Instance Template
     #   run: |
@@ -44,6 +50,6 @@ jobs:
     - name: Rolling Update MIG
       run: |
         MIG_NAME=
-        gcloud compute instance-groups managed rolling-action start-update mlops-intance-group-fgd4 \
-          --version=template=mlops-instance-template \
-          --region=us-east1
+        gcloud compute instance-groups managed rolling-action start-update mlops-group	 \
+          --version=template=mlops-gl-template \
+          --zone=us-east1-b
