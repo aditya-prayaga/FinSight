@@ -20,7 +20,7 @@ Adaptive Stock Prediction and Monitoring Pipeline
 16. [Load and Predict](#training-phase)
 17. [Retraining DAG](#retraining-dag)
 19. [Alert System](#retraining-dag)
-<!-- 18. [Conclusion](#conclusion) -->
+18. [Conclusion](#conclusion)
 
 ### Introduction
 This section introduces the FinSight project, explaining its purpose, scope, and key features. It highlights the main objectives of the pipeline, such as stock data processing, prediction capabilities, and the technology stack used, including MLflow, Apache Airflow, and DVC. It also mentions the documentation's purpose, which is to facilitate replication and scaling on various machines and environments.
