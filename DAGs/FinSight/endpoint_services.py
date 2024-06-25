@@ -25,7 +25,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/')
 def hello_world():
-    return jsonify(message="Hello, World1!")
+    return jsonify(message="Hello, World!")
 
 @app.route('/predict', methods=['POST'])
 def predict():
