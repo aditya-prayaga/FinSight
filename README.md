@@ -293,7 +293,7 @@ mlflow.log_param("Stats", statistics_dict)
 
 ### Anomalies Detection and Alerts
 
-Detecting and managing anomalies in the data is critical to maintain the integrity and accuracy of the pipeline outputs. The calculate_and_display_anomalies function is designed to:
+Covers the methods for detecting data anomalies and setting up alert systems. This includes using statistical methods or ML models to identify outliers and errors, and configuring Airflow or other tools to send alerts in case of data issues. The calculate_and_display_anomalies function is designed to:
 
 1. Anomaly Detection: Using the inferred schema and generated statistics, the function validates the data to detect any anomalies. These anomalies could be deviations from the expected data distribution, missing values, or outliers.
 2. Anomaly Visualization: Displaying the detected anomalies helps in understanding the nature and extent of data issues. Visualization tools provided by TFDV are used to make this process intuitive.
@@ -338,7 +338,7 @@ This project implements a comprehensive machine learning pipeline, integrating e
 
 
 ### Dividing Feature and Labels
-This functionality is defined in the function divide_features_and_labels that separates data into features and labels for training, evaluation, and testing datasets. Here's a summary of the key points:
+Explains how the pipeline separates data into features and labels, which is crucial for training machine learning models. This section should detail the strategies used to select and transform input data into a format suitable for model ingestion. Here's a summary of the key points:
 
 ![alt text](images/data-slicing-mlflow.png)
 - **Data Slicing:** Analyzes the model's performance on different slices of data.
@@ -348,12 +348,16 @@ For each DataFrame, it constructs the **feature** vectors from the previous 50 t
 - The is also integrated exception handling intermediatory storage in XComArgs
 
 ### Hyper Parameter Tuning
+Describes the process of hyperparameter tuning, including the use of tools like Optuna for finding optimal model settings. It should explain the objective function, the parameters being optimized, and how best values are integrated back into the model training process.
+
 - This section performs hyperparameter tuning using Optuna.
 - Here defines an objective function to optimize various hyperparameters like units, number of layers, dropout rate, learning rate, and batch size. We can add epochs also if needed.
 - The hyper_parameter_tuning function creates an Optuna study, optimizes the objective function over multiple **trials(Here we used 30)**, and logs the best hyperparameters using MLflow.
 - Summarizing this Performs hyperparameter tuning to optimize the model. This step is part of the code but can be skipped during testing by retrieving .
 
 ### Modelling & Training Phase
+Provides a comprehensive overview of the modeling and training processes, including details on the types of models used, the training algorithms, and how model performance is evaluated and improved over time.
+
 - **Training Function:** The training function trains the model using the best hyperparameters obtained from hyperparameter tuning and trains model for around **45 epochs** and considering the evaluation to be using mean squared Error.
 
 ![alt text](images/training-overview.png)
@@ -378,14 +382,14 @@ For each DataFrame, it constructs the **feature** vectors from the previous 50 t
 
 
 ### Load and Predict
- - We Use above Saved to predict and plot graph to compare and visualize the performance.
+ -Describes how trained models are loaded from storage and used to make predictions on new data. It should also cover how prediction results are handled, visualized, or integrated into downstream applications or reports.
 
 
 ![alt text](./visualizations/actual-vs-prediction.png)
 
 
 ### Retraining DAG
-The Retraining DAG orchestrates the process of retraining the FinSight pipeline using updated data. It involves a series of tasks including data ingestion, preprocessing, and retraining the model, managed by Apache Airflow.
+Details the structure and function of a separate DAG designed for retraining models with new data. It explains how this DAG integrates with the main pipeline and ensures the model stays updated with the latest data.
 
 ![x](./images/retraining-dag.png)
 
@@ -395,3 +399,14 @@ Key Points:
 - **Model Retraining:** The model is retrained using the newly ingested and processed data, with parameters from previous training or tuning.
 - **Task Dependencies:** The tasks are sequenced to ensure proper workflow, starting from data ingestion to retraining the model.
 - **MLflow Integration:** Although not explicitly shown in the retraining tasks, MLflow can be integrated to log the parameters and metrics during the retraining process.
+
+  ### Conclusion
+
+The FinSight project encapsulates a sophisticated, adaptive pipeline designed to tackle the complexities of stock prediction and monitoring. By leveraging advanced data processing techniques, machine learning models, and real-time data version control, FinSight provides a robust framework for predicting stock market trends with a high degree of accuracy.
+
+Our documentation and project structure are crafted to facilitate easy adoption and scalability, ensuring that users can not only replicate the existing setup but also adapt and expand it according to their needs. Through interactive tutorials, comprehensive testing, and dynamic visualizations, we aim to engage users at all levels, from beginners to advanced practitioners, enabling them to derive meaningful insights and value from the pipeline.
+
+We believe that FinSight stands as a testament to the power of open-source technology and collaborative development. As the project evolves, we encourage contributions and feedback from the community to help us improve and add even more capabilities to this pipeline.
+
+Thank you for exploring FinSight. We hope it serves as a valuable tool in your data analytics and machine learning endeavors, helping you to make informed decisions in the ever-changing landscape of the stock market.
+
