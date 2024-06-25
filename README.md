@@ -131,7 +131,6 @@ The User Installation Steps are as follows:
 
 - Stop docker containers (hit Ctrl + C in the terminal)
 
-
 ### Data Pipeline Workflow
 
 This is the initial Pipeline For which later Test tasks in airflow and Github action yml file would be added to make a seamless pipeline.
@@ -231,7 +230,6 @@ Conditional triggering of tasks can be achieved by defining appropriate failure 
 
 - For Modelling we plan to use local folder and Mlflow's registry for storing model & would like to extend to Google cloud storage utilization.
 ![x](./images/model-dataset.png)
-
 ### Pipeline Optimization
 To ensure the efficiency and reliability of the pipeline, several optimization strategies can be applied:
 
