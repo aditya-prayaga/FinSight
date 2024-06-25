@@ -90,6 +90,9 @@ def retraining(model_file_path,x_train,y_train,best_params):
         output_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "model", 'retrained_stock_prediction.h5')
         model.save(output_path)
 
+def evaluate_model():
+    pass
+
 search_for_retraining_dataset_task = PythonOperator(
     task_id='search_for_retraining_dataset',
     python_callable=get_retrain_dataset,
@@ -128,7 +131,7 @@ visualize_retraining_refined_data_task = PythonOperator(
     task_id='visualize_retraining_refined_data',
     python_callable=visualize_df,
     provide_context=True,
-    op_args=[apply_transformation_retraining_task.output],
+    op_args=[apply_transformation_retraining_task.output, "./visualizations/retrain-processed-data.png"],
     dag=retrain_dag,
 )
 
@@ -145,10 +148,19 @@ retraining_task = PythonOperator(
     python_callable=retraining,
     provide_context=True,
     op_kwargs={
-        "model_file_path": "./model/best_stock_prediction.h5",
+        "model_file_path": "./model/trained_stock_prediction.h5",
         'best_params': {'units': 106, 'num_layers': 1, 'dropout_rate': 0.13736332505446322, 'learning_rate': 0.0008486320428172737, 'batch_size': 75 },
         'x_train': divide_features_and_labels_task.output['x'], 
         'y_train': divide_features_and_labels_task.output['y']
+    },
+    dag=retrain_dag,
+)
+
+evaluating_models_task = PythonOperator(
+    task_id='evaluating_models',
+    python_callable=evaluate_model,
+    provide_context=True,
+    op_kwargs={
     },
     dag=retrain_dag,
 )
@@ -159,6 +171,7 @@ handle_outliers_in_retraining_data_task >> \
 apply_transformation_retraining_task >> \
 visualize_retraining_refined_data_task >> \
 divide_features_and_labels_task >> \
-retraining_task
+retraining_task >> \
+evaluating_models_task
 
 

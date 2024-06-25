@@ -65,13 +65,13 @@ x-airflow-common:
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
-    # AIRFLOW__EMAIL__EMAIL_BACKEND: airflow.utils.email.send_email_smtp
-    # AIRFLOW__EMAIL__FROM_EMAIL: "adityasaiprayaga@gmail.com"
-    # AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com
-    # AIRFLOW__SMTP__SMTP_STARTTLS: True
-    # AIRFLOW__SMTP__SMTP_SSL: False
-    # AIRFLOW__SMTP__SMTP_USER: adityasaiprayaga@gmail.com
-    # AIRFLOW__SMTP__SMTP_PASSWORD: #${MAIL_PASS}
+    AIRFLOW__EMAIL__EMAIL_BACKEND: airflow.utils.email.send_email_smtp
+    AIRFLOW__EMAIL__FROM_EMAIL: "adityasaiprayaga@gmail.com"
+    AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com
+    AIRFLOW__SMTP__SMTP_STARTTLS: True
+    AIRFLOW__SMTP__SMTP_SSL: False
+    AIRFLOW__SMTP__SMTP_USER: adityasaiprayaga@gmail.com
+    AIRFLOW__SMTP__SMTP_PASSWORD: "dkit yjac pcyu ojqb"
     AIRFLOW__SMTP__SMTP_PORT: 587    # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
     # yamllint enable rule:line-length
@@ -320,35 +320,23 @@ services:
       - "5000:5000"
     volumes:
           - ./mlruns:/mlflow
-    # command: 
-    #   - mlflow ui --backend-store-uri sqlite:////mlflow/mlflow.db --default-artifact-root /mlflow/artifacts --host 0.0.0.0
-    # depends_on:
-    #   <<: *airflow-common-depends-on
-    #   airflow-init:
-    #     condition: service_completed_successfully
 
-  # predict-endpoint-server:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.predict-endpoint-server
-  #   ports:
-  #     - "5002:5002"
-  #   volumes:
-  #     - ./model:/model
-  #   command: /bin/bash -c " \
-  #     shopt -s nullglob && \
-  #     while true; do \
-  #       model_files=(/model/*.h5); \
-  #       if [ \${#model_files[@]} -gt 0 ]; then \
-  #         echo 'Model file(s) found, starting server...'; \
-  #         echo 'Run Here' \
-  #         break; \
-  #       else \
-  #         echo 'Model file not found, checking again in 5 seconds...'; \
-  #         sleep 5; \
-  #       fi; \
-  #     done"
-
+  flask-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.endpoint-server
+    ports:
+      - "5002:5002"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:5000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    volumes:
+      - ./model:/app/model
+      - ./DAGs/FinSight:/app/src
+    environment:
+      - FLASK_ENV=production
 volumes:
   mlruns:
   postgres-db-volume:
