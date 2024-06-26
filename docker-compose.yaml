@@ -84,13 +84,13 @@ x-airflow-common:
     # If you want to use it, outcomment it and replace airflow.cfg with the name of your config file
     # AIRFLOW_CONFIG: '/home/ramin/airflow/airflow.cfg'
   volumes:
-    - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
-    - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
-    - ${AIRFLOW_PROJ_DIR:-.}/plugins:/plugins:/opt/airflow/plugins
-    - ${AIRFLOW_PROJ_DIR:-.}/model:/opt/airflow/model
-    - ${AIRFLOW_PROJ_DIR:-.}/mlruns:/opt/airflow/mlruns
-    - ${AIRFLOW_PROJ_DIR:-.}/visualizations:/opt/airflow/visualizations
-    - ${AIRFLOW_PROJ_DIR:-.}/data:/opt/airflow/data
+    - /home/FinSight/DAGs:/opt/airflow/DAGS
+    - /home/FinSight/logs:/opt/airflow/logs
+    - /home/FinSight/plugins:/plugins:/opt/airflow/plugins
+    - /home/FinSight/model:/opt/airflow/model
+    - /home/FinSight/mlruns:/opt/airflow/mlruns
+    - /home/FinSight/visualizations:/opt/airflow/visualizations
+    - /home/FinSight/data:/opt/airflow/data
 
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
@@ -264,7 +264,7 @@ services:
       _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
     user: "0:0"
     volumes:
-      - ${AIRFLOW_PROJ_DIR:-.}:/Users/home/Masters/IE-7374-MLOps/MLOps/Labs/Airflow_Labs/Lab_1
+      - /home/FinSight:/Users/home/Masters/IE-7374-MLOps/MLOps/Labs/Airflow_Labs/Lab_1
 
 
   airflow-cli:
@@ -328,7 +328,7 @@ services:
     ports:
       - "5002:5002"
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost:5000 || exit 1"]
+      test: ["CMD-SHELL", "curl --fail http://localhost:5002 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5

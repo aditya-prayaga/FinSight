@@ -8,6 +8,7 @@ import numpy as np
 import optuna
 import time
 from functools import partial
+from google.cloud import storage
 import os
 from keras.models import load_model
 from functools import partial
@@ -56,12 +57,22 @@ def download_and_uploadToDVCBucket(ticker_symbol, start_date, end_date, ti):
         mlflow.log_param("end_date", end_date)
         
         stock_data = yf.download(ticker_symbol, start=start_date, end=end_date)
-        filename = os.path.abspath(os.path.join(os.getcwd())) + "/" + f"{ticker_symbol}_stock_data_{start_date}_{end_date}.csv"
+        filename = "./data/train" + f"{ticker_symbol}_stock_data_{start_date}_{end_date}.csv"
         
         # Save stock data to CSV
         stock_data.to_csv(filename)
+        # file_loc = "gs://mlops_deploy_storage/data/train/" + f"{ticker_symbol}_stock_data_{start_date}_{end_date}.csv"
+        # stock_data.to_csv(file_loc)
         logging.info(f"Data downloaded and saved as {filename}")
+            # Upload the plot to GCS
+        storage_client = storage.Client()
+        bucket_name = "mlops_deploy_storage"
+        destination_blob_name = 'data/train' + "/" + f"{ticker_symbol}_stock_data_{start_date}_{end_date}.csv"
         
+        bucket = storage_client.bucket(bucket_name)
+        blob = bucket.blob(destination_blob_name)
+        blob.upload_from_filename(filename)
+    
         # # Log the CSV file as an artifact
         # print("hello1:", filename)
         # import getpass
