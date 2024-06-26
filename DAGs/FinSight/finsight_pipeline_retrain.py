@@ -25,67 +25,67 @@ retrain_dag = DAG(
     schedule_interval=None,
 )
 
-def fetch_retrain_dataset(file_pattern):
+def get_retrain_dataset(file_pattern):
     """
     Continuously checks for CSV files matching the pattern and reads them into a DataFrame.
     """
     try:
-        logging.info("Starting Retraining Process")
+        logging.info("Starting Retraining")
         
         # Loop to continuously check for the file
         while not glob.glob(file_pattern):
-            logging.info(f"No file found for pattern {file_pattern}, retrying in 10 seconds...")
+            logging.info(f"File {file_pattern} not found, checking again in 10 seconds...")
             time.sleep(10)
         
-        logging.info(f"Files matching pattern {file_pattern} found. Preparing to load data...")
-
+        logging.info(f"Files matching pattern {file_pattern} found, proceeding with retraining...")
+        
         # Get a list of all files matching the pattern
-        csv_files = glob.glob(file_pattern)
+        file_list = glob.glob(file_pattern)
         
         # Read each file into a DataFrame and concatenate them
-        data_frames = [pd.read_csv(file) for file in csv_files]
+        data_frames = [pd.read_csv(file) for file in file_list]
         combined_df = pd.concat(data_frames, ignore_index=True)
         
-        open_prices = combined_df['Open'].values.reshape(-1, 1)
-        open_prices_df = pd.DataFrame(open_prices)
+        df = combined_df['Open'].values.reshape(-1, 1)
+        df = pd.DataFrame(df)
         
-        logging.info("Successfully loaded and combined data into a single DataFrame.")
-        return open_prices_df
+        logging.info("All files read and combined into a single DataFrame.")
+        return df
     except Exception as e:
-        logging.error(f"Failed to Fetch Retrain Dataset: {e}")
+        logging.error(f"Failed to Retrain: {e}")
         raise
 
-def split_features_labels(dataset, ti):
+def divide_features_and_labels(retrain_dataset, ti):
     """
-    Splits the dataset into features (X) and labels (Y) for training.
+    Divides the dataset into features (X) and labels (Y) for training.
     """
     try:
-        features = []
-        labels = []
+        x = []
+        y = []
         
-        for i in range(50, dataset.shape[0]):
-            features.append(dataset.iloc[i-50:i, 0]) 
-            labels.append(dataset.iloc[i, 0]) 
+        for i in range(50, retrain_dataset.shape[0]):
+            x.append(retrain_dataset.iloc[i-50:i, 0]) 
+            y.append(retrain_dataset.iloc[i, 0]) 
             
-        features_df = pd.DataFrame(features) 
-        labels_df = pd.DataFrame(labels)
+        x = pd.DataFrame(x) 
+        y = pd.DataFrame(y)
 
-        # Push features and labels to XCom for downstream tasks
-        ti.xcom_push(key='features', value=features_df)
-        ti.xcom_push(key='labels', value=labels_df)
+        # Push x and y to XCom for downstream tasks
+        ti.xcom_push(key='x', value=x)
+        ti.xcom_push(key='y', value=y)
 
-        return features_df, labels_df
+        return x, y
     except Exception as e:
-        logging.error(f"Error in Splitting Features and Labels: {e}")
+        logging.error(f"Error in Dividing Features and Labels: {e}")
         raise
 
-def retrain_model(model_path, x_train, y_train, best_params):
+def retraining(model_file_path, x_train, y_train, best_params):
     """
     Retrains the model with new data and saves the updated model.
     """
     try:
         # Load the existing model
-        model = load_model(model_path)
+        model = load_model(model_file_path)
 
         # Compile the model
         model.compile(loss='mean_squared_error', optimizer='adam')
@@ -98,7 +98,7 @@ def retrain_model(model_path, x_train, y_train, best_params):
         
         # Save the retrained model
         model.save(output_path)
-        logging.info(f"Model successfully retrained and saved at {output_path}")
+        logging.info(f"Model retrained and saved at {output_path}")
     except Exception as e:
         logging.error(f"Error in Retraining Model: {e}")
         raise
@@ -110,72 +110,72 @@ def evaluate_model():
     pass
 
 # Define tasks for the DAG
-fetch_retrain_dataset_task = PythonOperator(
-    task_id='fetch_retrain_dataset',
-    python_callable=fetch_retrain_dataset,
+search_for_retraining_dataset_task = PythonOperator(
+    task_id='search_for_retraining_dataset',
+    python_callable=get_retrain_dataset,
     op_args=["./mlruns/retraining-data/*.csv"],
     dag=retrain_dag,
 )
 
-handle_missing_values_task = PythonOperator(
-    task_id='handle_missing_values',
+handle_missing_values_in_retraining_data_task = PythonOperator(
+    task_id='handle_missing_values_in_retraining_data',
     python_callable=handle_missing_values,
-    op_args=[XComArg(fetch_retrain_dataset_task)],
+    op_args=[XComArg(search_for_retraining_dataset_task)],
     dag=retrain_dag,
 )
 
-handle_outliers_task = PythonOperator(
-    task_id='handle_outliers',
+handle_outliers_in_retraining_data_task = PythonOperator(
+    task_id='handle_outliers_in_retraining_data',
     python_callable=handle_outliers,
-    op_args=[XComArg(handle_missing_values_task)],
+    op_args=[XComArg(handle_missing_values_in_retraining_data_task)],
     dag=retrain_dag,
 )
 
-apply_transformation_task = PythonOperator(
-    task_id='apply_transformation',
+apply_transformation_retraining_task = PythonOperator(
+    task_id='apply_transformation_retraining',
     python_callable=apply_transformation,
-    op_args=[XComArg(handle_outliers_task)],
+    op_args=[XComArg(search_for_retraining_dataset_task)],
     dag=retrain_dag,
 )
 
-visualize_data_task = PythonOperator(
-    task_id='visualize_data',
+visualize_retraining_refined_data_task = PythonOperator(
+    task_id='visualize_retraining_refined_data',
     python_callable=visualize_df,
-    op_args=[XComArg(apply_transformation_task), "./visualizations/retrain-processed-data.png"],
+    op_args=[XComArg(apply_transformation_retraining_task), "./visualizations/retrain-processed-data.png"],
     dag=retrain_dag,
 )
 
-split_features_labels_task = PythonOperator(
-    task_id='split_features_labels',
-    python_callable=split_features_labels,
-    op_args=[XComArg(visualize_data_task)],
+divide_features_and_labels_task = PythonOperator(
+    task_id='divide_features_and_labels',
+    python_callable=divide_features_and_labels,
+    op_args=[XComArg(visualize_retraining_refined_data_task)],
     dag=retrain_dag,
 )
 
-retrain_model_task = PythonOperator(
-    task_id='retrain_model',
-    python_callable=retrain_model,
+retraining_task = PythonOperator(
+    task_id='retraining',
+    python_callable=retraining,
     op_kwargs={
-        "model_path": "./model/trained_stock_prediction.h5",
+        "model_file_path": "./model/trained_stock_prediction.h5",
         'best_params': {'units': 106, 'num_layers': 1, 'dropout_rate': 0.13736332505446322, 'learning_rate': 0.0008486320428172737, 'batch_size': 75},
-        'x_train': XComArg(split_features_labels_task, key='features'), 
-        'y_train': XComArg(split_features_labels_task, key='labels')
+        'x_train': XComArg(divide_features_and_labels_task, key='x'), 
+        'y_train': XComArg(divide_features_and_labels_task, key='y')
     },
     dag=retrain_dag,
 )
 
-evaluate_model_task = PythonOperator(
-    task_id='evaluate_model',
+evaluating_models_task = PythonOperator(
+    task_id='evaluating_models',
     python_callable=evaluate_model,
     dag=retrain_dag,
 )
 
 # Define task dependencies
-fetch_retrain_dataset_task >> \
-handle_missing_values_task >> \
-handle_outliers_task >> \
-apply_transformation_task >> \
-visualize_data_task >> \
-split_features_labels_task >> \
-retrain_model_task >> \
-evaluate_model_task
+search_for_retraining_dataset_task >> \
+handle_missing_values_in_retraining_data_task >> \
+handle_outliers_in_retraining_data_task >> \
+apply_transformation_retraining_task >> \
+visualize_retraining_refined_data_task >> \
+divide_features_and_labels_task >> \
+retraining_task >> \
+evaluating_models_task
