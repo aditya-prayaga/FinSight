@@ -10,13 +10,11 @@ import time
 from functools import partial
 import os
 from keras.models import load_model
-from functools import partial
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras import metrics
-from FinSight.model import *
-
+from FinSight.model import Model
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -32,7 +30,7 @@ experiment = mlflow.get_experiment_by_name(experiment_name)
 if experiment is None:
     experiment_id = mlflow.create_experiment(
         experiment_name,
-        artifact_location=os.path.abspath(os.path.join(os.getcwd(), "mlruns","artifacts")),
+        artifact_location=os.path.abspath(os.path.join(os.getcwd(), "mlruns", "artifacts")),
         tags={"version": "v2", "priority": "P1"},
     )
 else:
@@ -43,7 +41,7 @@ mlflow.set_experiment(experiment_name)
 mlflow.autolog()
 mlflow.enable_system_metrics_logging()
 
-def download_and_uploadToDVCBucket(ticker_symbol, start_date, end_date, ti):
+def download_and_uploadToDVCBucket(ticker_symbol, start_date, end_date, ti=None):
     """
     Download stock data from Yahoo Finance and upload it to a Google Cloud Storage bucket.
     """
@@ -62,39 +60,24 @@ def download_and_uploadToDVCBucket(ticker_symbol, start_date, end_date, ti):
         stock_data.to_csv(filename)
         logging.info(f"Data downloaded and saved as {filename}")
         
-        # # Log the CSV file as an artifact
-        # print("hello1:", filename)
-        # import getpass
-        # print("user: ",         getpass.getuser()) 
-        # print("world:", os.path.abspath(os.path.join(os.getcwd(), "..", "mlruns","artifacts")))
-        # # os.environ['MLFLOW_TRACKING_URI'] = "/mlflow/artifacts"
-        # print(mlflow.get)
-        # mlflow.log_artifact(filename)
+        # Log the CSV file as an artifact
+        mlflow.log_artifact(filename)
         
-        # Push the stock_data to XCom
-        # ti.xcom_push(key='stock_data', value=stock_data)
-        # Log dataset information
-        # mlflow.log_input(name=os.path.basename(filename), context="dataset", path=filename)
-
+        return stock_data
     except Exception as e:
         logging.error(f"Failed to download or upload data: {e}")
         mlflow.log_param("error", str(e))
         raise
     finally:
         mlflow.end_run()
-        return stock_data
-    
 
-def visualize_raw_data(stock_data,file_path):
+def visualize_raw_data(stock_data, file_path):
     """
     Read stock data from a CSV file and visualize it, saving the plot to a specified GCS location.
     """
     mlflow.start_run(run_name="Visualize Data")
     time.sleep(15)
     try:
-        # logging.info(f"Reading data from {file_path}")
-        # Pull the DataFrame from XCom
-        # stock_data_dict = ti.xcom_pull(task_ids='download_upload_data', key='stock_data')
         df = pd.DataFrame(stock_data)
 
         logging.info("Converting 'Date' column to datetime format and setting it as index.")
@@ -127,7 +110,6 @@ def visualize_raw_data(stock_data,file_path):
         plt.legend()
 
         plt.tight_layout(rect=[0, 0, 1, 0.96])
-        
         plt.savefig(file_path)
     except Exception as e:
         logging.error(f"Failed to visualize Raw data: {e}")
@@ -136,85 +118,53 @@ def visualize_raw_data(stock_data,file_path):
         mlflow.end_run()
         return df
 
-def divide_train_eval_test_splits(df,ti):
+def divide_train_eval_test_splits(df, ti=None):
     """
-    - file_path (str): Path to the CSV file containing stock data.
-    - test_size (float): Proportion of the dataset to include in the test split.
-    - eval_size (float): Proportion of the train dataset to include in the eval split.
-    - random_state (int): Random seed for reproducibility.
-    
-    Returns:
-    - train_df (pd.DataFrame): DataFrame containing the training data.
-    - eval_df (pd.DataFrame): DataFrame containing the evaluation data.
-    - test_df (pd.DataFrame): DataFrame containing the testing data.
+    Divide the data into training, evaluation, and testing sets.
     """
     mlflow.start_run(run_name="Divide data set")
     time.sleep(15)
-    # mlflow.log_params(test_size,eval_size,random_state)
-    try:
-        # logging.info(f"Reading data from {file_path}")
-        # df = ti.xcom_pull(task_ids='download_upload_data', key='stock_data') #pd.read_csv(file_path)
-
+    try {
         df = df['Open'].values
-
-        # Reshape the data
-        df = df.reshape(-1, 1) 
+        df = df.reshape(-1, 1)
         
         train_df = np.array(df[:int(df.shape[0]*0.7)])
         eval_df = np.array(df[int(df.shape[0]*0.7):int(df.shape[0]*0.8)])
         test_df = np.array(df[int(df.shape[0]*0.8):])
-
-        logging.info("Splitting data into train+eval and test sets.")
-        # train_eval_df, test_df = train_test_split(df, test_size=test_size, random_state=random_state)
         
-        logging.info("Further splitting train+eval set into train and eval sets.")
-        # train_df, eval_df = train_test_split(train_eval_df, test_size=eval_size, random_state=random_state)
-
         train_dataset = mlflow.data.from_numpy(train_df)
         eval_dataset = mlflow.data.from_numpy(eval_df)
         test_dataset = mlflow.data.from_numpy(test_df)
-
+        
         mlflow.log_input(train_dataset, context="training")
-        mlflow.log_input(eval_dataset, context="Eval") 
-        mlflow.log_input(test_dataset, context="Test") 
-
+        mlflow.log_input(eval_dataset, context="eval")
+        mlflow.log_input(test_dataset, context="test")
+        
         train_df = pd.DataFrame(train_df)
         eval_df = pd.DataFrame(eval_df)
         test_df = pd.DataFrame(test_df)
-
-
-        logging.info("Pushing data splits to XCom.")
-        ti.xcom_push(key='train', value=train_df)
-        ti.xcom_push(key='eval', value=eval_df)
-        ti.xcom_push(key='test', value=test_df)
-        return pd.DataFrame(train_df), pd.DataFrame(eval_df), pd.DataFrame(test_df)
+        
+        if ti:
+            ti.xcom_push(key='train', value=train_df)
+            ti.xcom_push(key='eval', value=eval_df)
+            ti.xcom_push(key='test', value=test_df)
+        
+        return train_df, eval_df, test_df
     except Exception as e:
         logging.error(f"Failed to split data: {e}")
         raise
     finally:
         mlflow.end_run()
+}
 
 def handle_missing_values(df):
     """
-    Handles null values in the DataFrame:
-    - Forward fills null values in all columns.
-
-    Parameters:
-    df: Input stock data.
-
-    Returns:
-    pd.DataFrame: DataFrame with null values handled.
+    Handles null values in the DataFrame by forward filling them.
     """
     mlflow.start_run(run_name="Handle Missing Values - PreProcessing Step 1")
     try:
         logging.info("Handling missing values.")
-        logging.info("Dataset before handling missing values:\n{}".format(df))
-
-        # df = handle_null_open(df)
         df.fillna(method='ffill', inplace=True)
-
-        # logging.info("Dataset after handling missing values:\n{}".format(df.head()))
-
         return df
     except Exception as e:
         logging.error(f"Failed to handle missing values: {e}")
@@ -225,13 +175,6 @@ def handle_missing_values(df):
 def handle_outliers(df):
     """
     Removes outliers from the specified columns in the DataFrame using the IQR method.
-
-    Parameters:
-    df (pd.DataFrame): Input DataFrame.
-    columns (list): List of column names to check for outliers.
-
-    Returns:
-    pd.DataFrame: DataFrame with outliers removed.
     """
     mlflow.start_run(run_name="Handle Outlier Values - PreProcessing Step 2")
     try:
@@ -244,14 +187,12 @@ def handle_outliers(df):
             outliers = (df[column] < (Q1 - 1.5 * IQR)) | (df[column] > (Q3 + 1.5 * IQR))
             df = df[~outliers]
             logging.info(f"Removed outliers from column: {column}")
-
         return df
     except Exception as e:
         logging.error(f"Failed to handle outliers: {e}")
         raise
     finally:
         mlflow.end_run()
-
 
 def visualize_df(df, file_path):
     """
@@ -261,13 +202,11 @@ def visualize_df(df, file_path):
     try:
         logging.info("Visualizing DataFrame.")
         
-        # Create a new DataFrame from the input
         df = pd.DataFrame(df)
 
         plt.figure(figsize=(14, 10))
         plt.suptitle('Preprocessed Data Visualizations', fontsize=16)
 
-        # Line plot
         plt.subplot(3, 1, 1)
         plt.plot(df.index, df.iloc[:, 0], label='Preprocessed Data', color='blue')
         plt.title('Preprocessed Data Over Time')
@@ -275,14 +214,12 @@ def visualize_df(df, file_path):
         plt.ylabel('Value')
         plt.legend()
 
-        # Histogram
         plt.subplot(3, 1, 2)
         plt.hist(df.iloc[:, 0], bins=30, color='green', edgecolor='black')
         plt.title('Distribution of Preprocessed Data')
         plt.xlabel('Value')
         plt.ylabel('Frequency')
 
-        # Box plot
         plt.subplot(3, 1, 3)
         plt.boxplot(df.iloc[:, 0], vert=False, patch_artist=True, boxprops=dict(facecolor='red'))
         plt.title('Box Plot of Preprocessed Data')
@@ -292,7 +229,6 @@ def visualize_df(df, file_path):
         
         plt.savefig(file_path)
         plt.show()
-
     except Exception as e:
         logging.error(f"Failed to visualize DataFrame: {e}")
         raise
@@ -300,477 +236,336 @@ def visualize_df(df, file_path):
         mlflow.end_run()
         return df
 
-
-def apply_transformation(df,ti):
+def apply_transformation(df, ti=None):
     """
-    Normalizes the columns using MinMaxScaler, checks the data, and saves the preprocessed data.
-
-    Parameters:
-    df (pd.DataFrame): Input DataFrame with stock data.
-
-    Returns:
-    pd.DataFrame: DataFrame with scaled columns.
+    Normalizes the columns using MinMaxScaler and saves the scaler.
     """
-    mlflow.start_run(run_name="Apply Transformations on Train Data Sets")    
+    mlflow.start_run(run_name="Apply Transformations on Train Data Sets")
     try:
         logging.info("Applying transformations to DataFrame.")
-        scaler = MinMaxScaler(feature_range=(0,1))
-        df= scaler.fit_transform(df)
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        df = scaler.fit_transform(df)
         df = pd.DataFrame(df)
-        ti.xcom_push(key='scalar', value=scaler)
+        if ti:
+            ti.xcom_push(key='scaler', value=scaler)
+        return df
     except Exception as e:
         logging.error(f"Failed to apply transformations: {e}")
         raise
     finally:
         mlflow.end_run()
-        return df
 
-def apply_transformation_eval_test(df,ti):
+def apply_transformation_eval_test(df, ti=None):
     """
-    Normalizes the columns using MinMaxScaler, checks the data, and saves the preprocessed data.
-
-    Parameters:
-    df (pd.DataFrame): Input DataFrame with stock data.
-
-    Returns:
-    pd.DataFrame: DataFrame with scaled columns.
+    Normalizes the columns using a pre-fitted MinMaxScaler.
     """
-    mlflow.start_run(run_name="Apply Transformations on Eval and Test Data Sets")    
+    mlflow.start_run(run_name="Apply Transformations on Eval/Test Data Sets")
     try:
         logging.info("Applying transformations to DataFrame.")
-        scaler = ti.xcom_pull(task_ids='apply_transformation_training', key="scalar")
-        df = scaler.transform(df)        
+        scaler = ti.xcom_pull(key='scaler', task_ids='apply_transformation')
+        df = scaler.transform(df)
         df = pd.DataFrame(df)
-        ti.xcom_push(key='scalar', value=scaler)
-
-    except Exception as e:
-        logging.error(f"Failed to apply transformations: {e}")
-        raise
-    finally:
-        mlflow.end_run()
         return df
-
-def generate_schema(df):
-    """
-    Generate schema from the DataFrame.
-
-    Parameters:
-    df (pd.DataFrame): Input data frame.
-
-    Returns:
-    dict: Schema definition with column types.
-    """
-    mlflow.start_run(run_name="Generate Schema")   
-    try: 
-        schema = {}
-        for column in df.columns:
-            schema[column] = df[column].dtype
-        mlflow.log_param("Scheme", schema)
     except Exception as e:
         logging.error(f"Failed to apply transformations: {e}")
-        raise    
-    finally:
-        mlflow.end_run()
-        return schema
-
-def generate_statistics(df):
-    """
-    Generate descriptive statistics from the DataFrame.
-
-    Parameters:
-    df (pd.DataFrame): Input data frame.
-
-    Returns:
-    dict: Dictionary with descriptive statistics.
-    """
-    mlflow.start_run(run_name="Generate Schema")   
-    try: 
-        # Generate descriptive statistics
-        statistics = df.describe(include='all').transpose()
-
-        # Convert the DataFrame to a dictionary
-        statistics_dict = statistics.to_dict()
-        mlflow.log_param("Stats", statistics_dict)
-
-    except Exception as e:
-        logging.error(f"Failed to apply transformations: {e}")
-        raise  
-    finally:
-        mlflow.end_run()
-        return statistics_dict
-
-def generate_scheme_and_stats(df,ti):
-    """
-    Placeholder function for generating and validating scheme.
-    """
-    mlflow.start_run(run_name="Generate Schema & Statistics")   
-    try:
-        logging.info("Generating scheme and stats.")
-        
-        # Scheme
-        schema = generate_schema(df)
-        logging.info(f"Schema: {schema}")
-
-        # Stats
-        data_stats = generate_statistics(df)
-        logging.info(f"Statistics: \n{data_stats}")
-        
-        logging.info("Pushing data splits to XCom.")
-        ti.xcom_push(key='schema', value=schema)
-        ti.xcom_push(key='stats', value=data_stats)
-        
-    except Exception as e:
-        logging.error(f"Failed to generate and validate scheme: {e}")
         raise
     finally:
         mlflow.end_run()
-        return df
 
-def detect_anomalies(eval_df, training_schema, training_stats):
+def generate_schema(df, scaler, schema_file_path):
     """
-    Detect anomalies in the evaluation DataFrame by comparing it against the training schema and statistics.
-
-    Parameters:
-    eval_df (pd.DataFrame): Evaluation data frame.
-    training_schema (dict): Schema of the training data.
-    training_stats (dict): Statistics of the training data.
-
-    Returns:
-    dict: Detected anomalies including missing values and outliers.
+    Generates and logs the schema of the dataset.
     """
-    mlflow.start_run(run_name="Detecting Anomalies")   
     try:
-        anomalies = {'missing_values': {}, 'outliers': {}, 'schema_mismatches': {}, 'statistical_anomalies': {}}
-
-        # Detect missing values in the evaluation data
-        missing_values = eval_df.isnull().sum()
-        anomalies['missing_values'] = {col: count for col, count in missing_values.items() if count > 0}
-
-        # Detect outliers in the evaluation data
-        numeric_cols = eval_df.select_dtypes(include=['number']).columns
-        for col in numeric_cols:
-            Q1 = eval_df[col].quantile(0.25)
-            Q3 = eval_df[col].quantile(0.75)
-            IQR = Q3 - Q1
-            lower_bound = Q1 - 1.5 * IQR
-            upper_bound = Q3 + 1.5 * IQR
-            outliers = eval_df[(eval_df[col] < lower_bound) | (eval_df[col] > upper_bound)][col]
-            if not outliers.empty:
-                anomalies['outliers'][col] = outliers.tolist()
-
-        # Compare schema and detect schema mismatches
-        for col in training_schema:
-            if col not in eval_df.columns:
-                anomalies['schema_mismatches'][col] = 'Column missing in evaluation data'
-            elif eval_df[col].dtype != training_schema[col]:
-                anomalies['schema_mismatches'][col] = f'Type mismatch: expected {training_schema[col]}, got {eval_df[col].dtype}'
-
-        # Compare statistical properties
-        for col in training_stats:
-            if col in eval_df.columns:
-                eval_mean = eval_df[col].mean()
-                eval_std = eval_df[col].std()
-                train_mean = training_stats[col]['mean']
-                train_std = training_stats[col]['std']
-                if abs(eval_mean - train_mean) > 3 * train_std:
-                    anomalies['statistical_anomalies'][col] = {'eval_mean': eval_mean, 'train_mean': train_mean}
-                if abs(eval_std - train_std) > 3 * train_std:
-                    anomalies['statistical_anomalies'][col].update({'eval_std': eval_std, 'train_std': train_std}) 
+        logging.info("Generating schema.")
+        schema = {
+            "columns": [
+                {"name": column, "type": str(df[column].dtype), "min": float(df[column].min()), "max": float(df[column].max())}
+                for column in df.columns
+            ],
+            "scaler_min": float(scaler.data_min_[0]),
+            "scaler_max": float(scaler.data_max_[0])
+        }
+        
+        with open(schema_file_path, "w") as schema_file:
+            json.dump(schema, schema_file)
+        mlflow.log_artifact(schema_file_path)
     except Exception as e:
-        logging.error(f"Failed to generate and validate scheme: {e}")
+        logging.error(f"Failed to generate schema: {e}")
+        raise
+
+def generate_statistics(df, statistics_file_path):
+    """
+    Generates and logs descriptive statistics of the dataset.
+    """
+    try:
+        logging.info("Generating statistics.")
+        statistics = df.describe().to_dict()
+        with open(statistics_file_path, "w") as statistics_file:
+            json.dump(statistics, statistics_file)
+        mlflow.log_artifact(statistics_file_path)
+    except Exception as e:
+        logging.error(f"Failed to generate statistics: {e}")
+        raise
+
+def generate_scheme_and_stats(df, scaler):
+    """
+    Generate and log schema and statistics of the dataset.
+    """
+    mlflow.start_run(run_name="Generate Scheme and Stats")
+    try:
+        schema_file_path = "schema.json"
+        statistics_file_path = "statistics.json"
+        generate_schema(df, scaler, schema_file_path)
+        generate_statistics(df, statistics_file_path)
+    except Exception as e:
+        logging.error(f"Failed to generate schema and statistics: {e}")
         raise
     finally:
         mlflow.end_run()
+
+def detect_anomalies(eval_df, schema, statistics):
+    """
+    Detect anomalies in the evaluation dataset based on the schema and statistics.
+    """
+    try:
+        anomalies = pd.DataFrame()
+        for column in eval_df.columns:
+            column_min = schema["columns"][column]["min"]
+            column_max = schema["columns"][column]["max"]
+            column_mean = statistics[column]["mean"]
+            column_std = statistics[column]["std"]
+
+            anomalies[column] = (eval_df[column] < column_min) | (eval_df[column] > column_max) | \
+                                (abs(eval_df[column] - column_mean) > 3 * column_std)
         return anomalies
+    except Exception as e:
+        logging.error(f"Failed to detect anomalies: {e}")
+        raise
 
-def calculate_and_display_anomalies(eval_df, training_schema, training_stats):
+def calculate_and_display_anomalies(eval_df, schema, statistics):
     """
-    Calculate and display anomalies in the evaluation DataFrame by comparing it against the training schema and statistics.
-
-    Parameters:
-    eval_df (pd.DataFrame): Evaluation data frame.
-    ti (TaskInstance): Airflow TaskInstance for XCom operations.
-    training_schema (dict): Schema of the training data.
-    training_stats (dict): Statistics of the training data.
-
-    Returns:
-    pd.DataFrame: The original evaluation DataFrame after anomaly detection.
+    Calculate and display anomalies, and log them with MLflow.
     """
-    mlflow.start_run(run_name="Calculating anomalies from Eval Df and Training (Schema, Stats)")   
+    mlflow.start_run(run_name="Calculate and Display Anomalies")
     try:
-        logging.info("Calculating and Displaying Anomalies")
-
-        # Log the values of training schema and stats for debugging purposes
-        logging.info(f"Training Schema: {training_schema}")
-        logging.info(f"Training Statistics: {training_stats}")
-
-        # Detect anomalies
-        anomalies = detect_anomalies(eval_df, training_schema, training_stats)
-        logging.info(f"Anomalies: {anomalies}")
-
-        
+        anomalies = detect_anomalies(eval_df, schema, statistics)
+        anomaly_count = anomalies.sum().sum()
+        mlflow.log_metric("anomaly_count", anomaly_count)
     except Exception as e:
         logging.error(f"Failed to calculate and display anomalies: {e}")
         raise
     finally:
         mlflow.end_run()
-        return eval_df
-    
 
-# Training Phase
-
-# Device configuration
-# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
-# Create the function that will help us to create the datasets
-def divide_features_and_labels(train_df, eval_df, test_df, ti):
+def divide_features_and_labels(train_df, eval_df, test_df):
     """
-    Divide the data into features and labels.
-
-    Parameters:
-    - train_df (pd.DataFrame): DataFrame containing the training data.
-    - eval_df (pd.DataFrame): DataFrame containing the evaluation data.
-    - test_df (pd.DataFrame): DataFrame containing the testing data.
-    - ti (TaskInstance): Airflow TaskInstance for XCom operations.
+    Divide the data into features and labels for training, evaluation, and testing.
     """
-    mlflow.start_run(run_name="Divide Data set into features and labels")   
+    mlflow.start_run(run_name="Divide Features and Labels")
     try:
-        dfs = [train_df, eval_df, test_df]
-        x_train = []
-        x_eval = []
-        x_test = []
-        y_train = []
-        y_eval = []
-        y_test = []
-        x = [x_train, x_eval, x_test]
-        y = [y_train, y_eval, y_test]
-        for ind, df in enumerate(dfs):
-            for i in range(50, df.shape[0]):
-                x[ind].append(df.iloc[i-50:i, 0].values) 
-                y[ind].append(df.iloc[i, 0]) 
+        train_X = train_df[:-1]
+        train_y = train_df.shift(-1).dropna()
+        eval_X = eval_df[:-1]
+        eval_y = eval_df.shift(-1).dropna()
+        test_X = test_df[:-1]
+        test_y = test_df.shift(-1).dropna()
         
-        ti.xcom_push(key='x', value=x)
-        ti.xcom_push(key='y', value=y)
-
-        mlflow.log_params({"x": x,"y": y})
-
+        return train_X, train_y, eval_X, eval_y, test_X, test_y
     except Exception as e:
-        logging.error(f"Error in Dividing Features and Labels: {e}")
+        logging.error(f"Failed to divide features and labels: {e}")
         raise
     finally:
         mlflow.end_run()
 
-def objective(trial, x , y):
+def objective(train_X, train_y, trial):
     """
-    Objective Function for Hyperparameter Tuning
-
-    Parameters:
-    - trail:
-    - x: Features to train on 
-    - y: Labels to evaluate against
-
-    Returns:
-    Loss Val: The loss value of the trail.
+    Define the objective function for hyperparameter tuning.
     """
-    mlflow.start_run(run_name="Objective Function to run experiments on, used by optuna", nested=True)   
+    mlflow.start_run(run_name="Hyperparameter Tuning")
     try:
-        # Define hyperparameters to be optimized
-        units = trial.suggest_int('units', 32, 128)
-        num_layers = trial.suggest_int('num_layers', 1, 3)
-        dropout_rate = trial.suggest_float('dropout_rate', 0.1, 0.5)
-        learning_rate = trial.suggest_float('learning_rate', 1e-4, 1e-2)
-        batch_size = trial.suggest_int('batch_size', 32, 128)
+        units = trial.suggest_int("units", 50, 200)
+        dropout = trial.suggest_float("dropout", 0.1, 0.5)
+        learning_rate = trial.suggest_loguniform("learning_rate", 1e-5, 1e-2)
+        batch_size = trial.suggest_int("batch_size", 16, 64)
+        epochs = trial.suggest_int("epochs", 10, 50)
 
-        x_train, y_train = np.array(x[0]), np.array(y[0])
-        x_eval, y_eval = np.array(x[1]), np.array(y[1])
+        model = Model(units, dropout)
+        model.compile(optimizer=Adam(learning_rate=learning_rate), loss=MeanSquaredError(), metrics=[metrics.MeanAbsoluteError()])
 
-        x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
-        # y_train = np.reshape(y_train, (y_train.shape[0], y_train.shape[1], 1))
-        x_eval = np.reshape(x_eval, (x_eval.shape[0], x_eval.shape[1], 1))
-        # y_eval = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
+        early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
 
-        # Create the model
-        model = Model()
-        model.hyperparameter_layers(units=units,num_layers=num_layers,dropout_rate=dropout_rate,input_shape=(x_train.shape[1], 1))
+        history = model.fit(
+            train_X, train_y,
+            validation_split=0.2,
+            epochs=epochs,
+            batch_size=batch_size,
+            callbacks=[early_stopping]
+        )
 
-        # Compile the model
-        model.get_model("hyperparameter").compile(optimizer=Adam(learning_rate=learning_rate), loss=MeanSquaredError())
-
-        # Train the model
-        early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
-        model.get_model("hyperparameter").fit(x_train, y_train, validation_data=(x_eval, y_eval), epochs=1, batch_size=batch_size, callbacks=[early_stopping], verbose=0)
-
-        # Evaluate the model
-        val_loss = model.get_model("hyperparameter").evaluate(x_eval, y_eval, verbose=0)
-
-    except Exception as e:
-        logging.error(f"Error in Objective Function: {e}")
-        raise
-    finally:
-        mlflow.end_run()
+        val_loss = min(history.history['val_loss'])
+        mlflow.log_metric("val_loss", val_loss)
         return val_loss
-    
+    except Exception as e:
+        logging.error(f"Failed to complete objective function: {e}")
+        raise
+    finally:
+        mlflow.end_run()
 
-def hyper_parameter_tuning(x,y):
+def hyper_parameter_tuning(train_X, train_y, n_trials=50):
     """
-    Objective Function for Hyperparameter Tuning
-
-    Parameters:
-    - x: Features to train on 
-    - y: Labels to evaluate against
-
-    Returns:
-    Loss Val: The loss value of the trail.
+    Perform hyperparameter tuning using Optuna.
     """
-    mlflow.start_run(run_name="Hyper-parameter Tuning", nested=True)   
+    mlflow.start_run(run_name="Hyperparameter Tuning")
     try:
-        # Partial function to pass x and y to the objective
-        objective_fn = partial(objective, x=x, y=y)
-
-        # Define the study
-        study = optuna.create_study(direction='minimize')
-        study.optimize(objective_fn, n_trials=1)
-
-        # Get the best trial
+        study = optuna.create_study(direction="minimize")
+        study.optimize(partial(objective, train_X, train_y), n_trials=n_trials)
         best_trial = study.best_trial
-        best_params = best_trial.params
 
+        logging.info(f"Best trial: {best_trial.params}")
+        mlflow.log_params(best_trial.params)
+        
+        return best_trial.params
     except Exception as e:
-        logging.error(f"Error in Hyper Parameter Tuning: {e}")
+        logging.error(f"Failed to complete hyperparameter tuning: {e}")
         raise
     finally:
         mlflow.end_run()
-        return best_params   
-    # return {'units': 106, 'num_layers': 1, 'dropout_rate': 0.13736332505446322, 'learning_rate': 0.0008486320428172737, 'batch_size': 75}
-    # return {'units': 96, 'num_layers': 1, 'dropout_rate': 0.2, 'batch_size': 64}
 
-
-def training(best_params, x, y):
+def training(train_X, train_y, params):
     """
-   Train the model with the best hyperparameters
-
-    Parameters:
-    - best_params: Best parameters from Hyperparameter Tuning
-    - x: Features to train on
-    - y: Labels to evaluate against
-
-    Returns:
-    output_path: Saved model output path.
+    Train the LSTM model with the best hyperparameters.
     """
-    mlflow.start_run(run_name="training")  
+    mlflow.start_run(run_name="Training Model")
     try:
-        x_train, y_train = np.array(x[0]), np.array(y[0])
-        x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
-            
-        # Create the model
-        model = Model()
-        model.create_training_layers(best_params=best_params,input_shape=(x_train.shape[1], 1))
+        model = Model(params["units"], params["dropout"])
+        model.compile(optimizer=Adam(learning_rate=params["learning_rate"]), loss=MeanSquaredError(), metrics=[metrics.MeanAbsoluteError()])
 
-        model.get_model("training").summary()
+        early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
 
-        # Compile the model
-        model.get_model("training").compile(optimizer=Adam(learning_rate=best_params["learning_rate"]),loss=MeanSquaredError(), metrics=[metrics.MeanSquaredError(), metrics.AUC()])
+        history = model.fit(
+            train_X, train_y,
+            validation_split=0.2,
+            epochs=params["epochs"],
+            batch_size=params["batch_size"],
+            callbacks=[early_stopping]
+        )
 
-        # Log parameters with MLflow
-        mlflow.log_params(best_params)
+        model.save("trained_model.h5")
+        mlflow.log_artifact("trained_model.h5")
 
-        # Train the model
-        # early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
-        model.get_model("training").fit(x_train, y_train, epochs=1, batch_size=best_params["batch_size"], verbose=1)
-
-        # Save the model with MLflow
-        # mlflow.keras.log_model(model, "model")
-
-        output_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "model", 'trained_stock_prediction.h5')
-        model.get_model("training").save(output_path)
-
+        return model
     except Exception as e:
-        logging.error(f"Error in Training: {e}")
+        logging.error(f"Failed to complete model training: {e}")
         raise
     finally:
         mlflow.end_run()
-        return output_path
 
-def load_and_predict(x, file_path,ti):
+def load_and_predict(test_X):
     """
-   Load and Predict from trained model
-
-    Parameters:
-    - x: Features to train on
-    - file_path: Trained Model File
-
-    Returns:
-    predictions: Predictions on the test feature set.
+    Load the trained model and make predictions on the test dataset.
     """
-    mlflow.start_run(run_name="Load and Prediction")  
+    mlflow.start_run(run_name="Load Model and Predict")
     try:
-
-        # Load and predict
-        model = load_model(file_path)
-
-        x_test = np.array(x[2])
-        x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1)) 
-        scaler = ti.xcom_pull(task_ids='apply_transformation_training', key='scalar')
-
-        predictions =  model.predict(x_test)
-        predictions = scaler.inverse_transform(predictions)
-
-    except Exception as e:
-        logging.error(f"Error in Load and Prediction: {e}")
-        raise
-    finally:
-        mlflow.end_run()
+        model = load_model("trained_model.h5")
+        predictions = model.predict(test_X)
         return predictions
-
-def evaluate_and_visualize(predictions, y, ti, save_path='/opt/airflow/visualizations/act.png'):
+    except Exception as e:
+        logging.error(f"Failed to complete prediction: {e}")
+        raise
+    finally:
+        mlflow.end_run()
+def evaluate_model(model, test_X, test_y, scaler):
     """
-   Evaluate and visualize the predictions 
-
-    Parameters:
-    - predictions: Predictions on the test feature set.
-    - y: Label set
-
-    Returns:
-    predictions: Predictions on the test feature set.
+    Evaluate the trained model on the test dataset and log the evaluation metrics.
     """
-    mlflow.start_run(run_name="Evaluate and Visualize")  
+    mlflow.start_run(run_name="Evaluate Model")
     try:
-        # Visualize the difference between actual vs predicted y-values
-        plt.figure(figsize=(10, 6))
-        y_test_actual = np.array(y[2])
+        predictions = model.predict(test_X)
         
-        scaler = ti.xcom_pull(task_ids='apply_transformation_training', key='scalar')
-        y_test_scaled = scaler.inverse_transform(y_test_actual.reshape(-1, 1))
+        # Inverse transform the predictions and true values
+        predictions = scaler.inverse_transform(predictions)
+        test_y = scaler.inverse_transform(test_y)
         
-        plt.plot(y_test_scaled, label='Actual Values')
-        plt.plot(predictions, label='Predicted Values')
-        plt.title('Actual vs Predicted Values')
+        mse = MeanSquaredError()(test_y, predictions).numpy()
+        mae = metrics.mean_absolute_error(test_y, predictions).numpy()
+        
+        mlflow.log_metric("mean_squared_error", mse)
+        mlflow.log_metric("mean_absolute_error", mae)
+        
+        return mse, mae
+    except Exception as e:
+        logging.error(f"Failed to evaluate the model: {e}")
+        raise
+    finally:
+        mlflow.end_run()
+
+def visualize_predictions(test_y, predictions, file_path):
+    """
+    Visualize the true vs predicted values and save the plot to a specified location.
+    """
+    mlflow.start_run(run_name="Visualize Predictions")
+    try:
+        plt.figure(figsize=(14, 7))
+        plt.plot(test_y, label='True Values', color='blue')
+        plt.plot(predictions, label='Predicted Values', color='red')
+        plt.title('True vs Predicted Stock Prices')
+        plt.xlabel('Time')
         plt.ylabel('Stock Price')
         plt.legend()
-        plt.savefig(save_path)
+        
+        plt.savefig(file_path)
         plt.show()
-
+        
+        mlflow.log_artifact(file_path)
     except Exception as e:
-        logging.error(f"Error in Evaluate and Visualize: {e}")
+        logging.error(f"Failed to visualize predictions: {e}")
         raise
     finally:
         mlflow.end_run()
- 
-# # Lets create a Flask API to show sucess or failure of the main dag
-# app = Flask(__name__)
 
-# # Function to start Flask app
-# def start_flask_app():
-#     app.run(host='0.0.0.0', port=5001)
+# Main execution steps
+def main():
+    ticker_symbol = 'AAPL'
+    start_date = '2020-01-01'
+    end_date = '2023-01-01'
+    raw_data_path = f"{ticker_symbol}_raw_data.png"
+    preprocessed_data_path = f"{ticker_symbol}_preprocessed_data.png"
+    predictions_path = f"{ticker_symbol}_predictions.png"
 
-# # Flask routes
-# @app.route('/predict', methods=['POST'])
-# def predict():
-#     data = request.get_json()  # Get data as JSON
-#     Open = float(data['Open'])
-#     Close = float(data['Close'])
-#     # petal_length = float(data['petal_length'])
-#     # petal_width = float(data['petal_width'])
+    stock_data = download_and_uploadToDVCBucket(ticker_symbol, start_date, end_date)
+    df = visualize_raw_data(stock_data, raw_data_path)
+    df = handle_missing_values(df)
+    df = handle_outliers(df)
+    visualize_df(df, preprocessed_data_path)
 
-#     print(Open, Close)
+    train_df, eval_df, test_df = divide_train_eval_test_splits(df)
+    train_df = apply_transformation(train_df)
+    eval_df = apply_transformation_eval_test(eval_df)
+    test_df = apply_transformation_eval_test(test_df)
+
+    scaler = MinMaxScaler().fit(df)
+    generate_scheme_and_stats(df, scaler)
+
+    schema_file_path = "schema.json"
+    statistics_file_path = "statistics.json"
+    with open(schema_file_path, "r") as schema_file:
+        schema = json.load(schema_file)
+    with open(statistics_file_path, "r") as statistics_file:
+        statistics = json.load(statistics_file)
+
+    calculate_and_display_anomalies(eval_df, schema, statistics)
+
+    train_X, train_y, eval_X, eval_y, test_X, test_y = divide_features_and_labels(train_df, eval_df, test_df)
+
+    best_params = hyper_parameter_tuning(train_X, train_y)
+    model = training(train_X, train_y, best_params)
+
+    mse, mae = evaluate_model(model, test_X, test_y, scaler)
+    logging.info(f"Test MSE: {mse}, Test MAE: {mae}")
+
+    predictions = load_and_predict(test_X)
+    visualize_predictions(test_y, predictions, predictions_path)
+
+if __name__ == "__main__":
+    main()
