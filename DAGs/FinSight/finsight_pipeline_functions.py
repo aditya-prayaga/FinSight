@@ -572,7 +572,6 @@ def divide_features_and_labels(train_df, eval_df, test_df, ti):
     finally:
         mlflow.end_run()
 
-
 def objective(trial, x , y):
     """
     Objective Function for Hyperparameter Tuning
@@ -658,7 +657,6 @@ def hyper_parameter_tuning(x,y):
     # return {'units': 96, 'num_layers': 1, 'dropout_rate': 0.2, 'batch_size': 64}
 
 
-
 def training(best_params, x, y):
     """
    Train the model with the best hyperparameters
@@ -680,6 +678,8 @@ def training(best_params, x, y):
         model = Model()
         model.create_training_layers(best_params=best_params, input_shape=(x_train.shape[1], 1))
         
+        model.get_model("training").summary()
+
         # Compile the model
         model.get_model("training").compile(optimizer=Adam(learning_rate=best_params["learning_rate"]),loss=MeanSquaredError(), metrics=[metrics.MeanSquaredError(), metrics.AUC()])
 
@@ -702,7 +702,6 @@ def training(best_params, x, y):
     finally:
         mlflow.end_run()
         return output_path
-
 
 def load_and_predict(x, file_path,ti):
     """

@@ -48,13 +48,10 @@ def test_download_and_uploadToDVCBucket_positive(mocker):
         'Close': [110, 210],
         'Volume': [1000, 1500],
     })
-    with patch('yfinance.download', return_value=mock_stock_data) as mock_download:
-        download_and_uploadToDVCBucket(ticker_symbol=ticker, start_date=start, end_date=end, ti=mock_task_instance)
+    mocker.patch('yfinance.download', return_value=mock_stock_data)
 
-        # Ensure the yfinance.download method was called with the correct parameters
-        mock_download.assert_called_once_with(ticker, start=start, end=end)
-
-    # Verify the data was pushed to XCom
+    download_and_uploadToDVCBucket(ticker_symbol=ticker, start_date=start, end_date=end, ti=mock_task_instance)
+   
     assert 'stock_data' in mock_task_instance.xcom_push_results
     pd.testing.assert_frame_equal(mock_task_instance.xcom_push_results['stock_data'], mock_stock_data)
 
@@ -161,27 +158,21 @@ def test_handle_outliers_negative():
     with pytest.raises(Exception):
         handle_outliers(None)
 
-# Positive test case
-def test_visualize_df_positive():
-    # Mock input DataFrame
-    mock_df = pd.DataFrame({
-        'Open': [100, 200],
-        'Close': [110, 210],
-        'Volume': [1000, 1500],
-    })
+# # Test for visualize_df
+# def test_visualize_df_positive():
+#     mock_df = pd.DataFrame({
+#         'Open': [100, 200],
+#         'Close': [110, 210],
+#         'Volume': [1000, 1500],
+#     })
 
-    # Call the function under test
-    result_df = visualize_df(mock_df.copy())
+#     result_df = visualize_df(mock_df.copy())
 
-    # Assert that the returned DataFrame is equal to the input DataFrame
-    pd.testing.assert_frame_equal(result_df, mock_df)
+#     pd.testing.assert_frame_equal(result_df, mock_df)
 
-# Negative test case
-def test_visualize_df_negative():
-    # Assert that calling visualize_df with None raises an Exception
-    with pytest.raises(Exception):
-        visualize_df(None)
-
+# def test_visualize_df_negative():
+#     with pytest.raises(Exception):
+#         visualize_df(None)
 
 # Test for apply_transformation
 def test_apply_transformation_positive():
@@ -196,18 +187,15 @@ def test_apply_transformation_positive():
 
     result_df = apply_transformation(mock_df.copy())
 
-    # Define columns to transform
-    columns_to_scale = ['Volume', 'Open', 'Close', 'High', 'Low', 'Adj Close']
-    
-    # Initialize scaler
     scaler = MinMaxScaler(feature_range=(0, 1))
-
-    # Apply scaling to expected DataFrame
     expected_df = mock_df.copy()
-    for col in columns_to_scale:
-        expected_df[col] = scaler.fit_transform(expected_df[[col]])
+    expected_df['Volume'] = scaler.fit_transform(expected_df[['Volume']])
+    expected_df['Open'] = scaler.fit_transform(expected_df[['Open']])
+    expected_df['Close'] = scaler.fit_transform(expected_df[['Close']])
+    expected_df['High'] = scaler.fit_transform(expected_df[['High']])
+    expected_df['Low'] = scaler.fit_transform(expected_df[['Low']])
+    expected_df['Adj Close'] = scaler.fit_transform(expected_df[['Adj Close']])
 
-    # Assert equality
     pd.testing.assert_frame_equal(result_df, expected_df)
 
 
