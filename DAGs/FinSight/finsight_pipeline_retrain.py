@@ -107,8 +107,8 @@ search_for_retraining_dataset_task = PythonOperator(
 handle_missing_values_in_retraining_data_task = PythonOperator(
     task_id='handle_missing_values_in_retraining_data',
     python_callable=handle_missing_values,
-    op_args=[search_for_retraining_dataset_task.output],
     provide_context=True,
+    op_args=["{{ task_instance.xcom_pull(task_ids='search_for_retraining_dataset') }}"],
     dag=retrain_dag,
 )
 
@@ -134,9 +134,13 @@ visualize_retraining_refined_data_task = PythonOperator(
     task_id='visualize_retraining_refined_data',
     python_callable=visualize_df,
     provide_context=True,
-    op_args=[apply_transformation_retraining_task.output, "./visualizations/retrain-processed-data.png"],
+    op_args=[
+        "{{ task_instance.xcom_pull(task_ids='apply_transformation_retraining') }}", 
+        "./visualizations/retrain-processed-data.png"
+    ],
     dag=retrain_dag,
 )
+
 
 divide_features_and_labels_task = PythonOperator(
     task_id='divide_features_and_labels',
