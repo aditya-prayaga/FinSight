@@ -26,7 +26,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Root endpoint which provides a basic greeting
 @app.route('/')
 def hello_world():
-    return jsonify(message="Hello, World!")
+    return jsonify(message="Hello, World1!")
 
 # Prediction endpoint which handles file uploads and makes predictions
 @app.route('/predict', methods=['POST'])
