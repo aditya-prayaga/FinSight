@@ -695,41 +695,29 @@ def training(best_params, x, y):
     """
     mlflow.start_run(run_name="training")  
     try:
-        # Convert and reshape training data
         x_train, y_train = np.array(x[0]), np.array(y[0])
         x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
             
         # Create the model
         model = Model()
-        model.create_training_layers(best_params=best_params, input_shape=(x_train.shape[1], 1))
+        model.create_training_layers(best_params=best_params,input_shape=(x_train.shape[1], 1))
 
-        # Log the model summary
         model.get_model("training").summary()
 
         # Compile the model
-        model.get_model("training").compile(
-            optimizer=Adam(learning_rate=best_params["learning_rate"]),
-            loss=MeanSquaredError(),
-            metrics=[metrics.MeanSquaredError(), metrics.AUC()]
-        )
+        model.get_model("training").compile(optimizer=Adam(learning_rate=best_params["learning_rate"]),loss=MeanSquaredError(), metrics=[metrics.MeanSquaredError(), metrics.AUC()])
 
         # Log parameters with MLflow
         mlflow.log_params(best_params)
 
         # Train the model
-        early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
-        model.get_model("training").fit(
-            x_train, y_train,
-            epochs=best_params.get("epochs", 10),
-            batch_size=best_params["batch_size"],
-            verbose=1,
-            callbacks=[early_stopping]
-        )
+        # early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+        model.get_model("training").fit(x_train, y_train, epochs=1, batch_size=best_params["batch_size"], verbose=1)
 
-        # Define the output path
+        # Save the model with MLflow
+        # mlflow.keras.log_model(model, "model")
+
         output_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "model", 'trained_stock_prediction.h5')
-        
-        # Save the model
         model.get_model("training").save(output_path)
 
     except Exception as e:
