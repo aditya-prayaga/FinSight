@@ -205,10 +205,6 @@ def divide_train_eval_test_splits(df,ti):
     finally:
         mlflow.end_run()
 
-import mlflow
-import logging
-import pandas as pd
-
 def handle_missing_values(df, column=None):
     """
     Handles null values in the DataFrame:
