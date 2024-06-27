@@ -51,7 +51,7 @@ download_and_uploadToDVCBucket_task = PythonOperator(
 
 visualize_raw_data_task = PythonOperator(
     task_id='visualize_data',
-    op_args=[download_and_uploadToDVCBucket_task.output, "/opt/airflow/visualizations/data1-viz.png"],
+    op_args=[download_and_uploadToDVCBucket_task.output, "./visualizations/raw-data-viz.png"],
     python_callable=visualize_raw_data,
     provide_context=True,
 )
