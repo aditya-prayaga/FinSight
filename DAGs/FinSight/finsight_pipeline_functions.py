@@ -570,25 +570,25 @@ def divide_features_and_labels(train_df, eval_df, test_df, ti):
     - ti (TaskInstance): Airflow TaskInstance for XCom operations.
     """
     mlflow.start_run(run_name="Divide Data set into features and labels")
-    
     try:
         dfs = [train_df, eval_df, test_df]
-        x_train, x_eval, x_test = [], [], []
-        y_train, y_eval, y_test = [], [], []
+        x_train = []
+        x_eval = []
+        x_test = []
+        y_train = []
+        y_eval = []
+        y_test = []
         x = [x_train, x_eval, x_test]
         y = [y_train, y_eval, y_test]
-
         for ind, df in enumerate(dfs):
-            for i in range(sequence_length, df.shape[0]):
-                x[ind].append(df.iloc[i-sequence_length:i, 0].values)
-                y[ind].append(df.iloc[i, 0])
+            for i in range(50, df.shape[0]):
+                x[ind].append(df.iloc[i-50:i, 0].values) 
+                y[ind].append(df.iloc[i, 0]) 
         
         ti.xcom_push(key='x', value=x)
         ti.xcom_push(key='y', value=y)
 
-        mlflow.log_params({"x_length": len(x), "y_length": len(y)})
-
-        return x, y
+        mlflow.log_params({"x": x,"y": y})
 
     except Exception as e:
         logging.error(f"Error in Dividing Features and Labels: {e}")
