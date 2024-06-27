@@ -108,7 +108,8 @@ handle_missing_values_in_retraining_data_task = PythonOperator(
     task_id='handle_missing_values_in_retraining_data',
     python_callable=handle_missing_values,
     provide_context=True,
-    op_args=["{{ task_instance.xcom_pull(task_ids='search_for_retraining_dataset') }}"],
+    op_args=[search_for_retraining_dataset_task.output],
+    provide_context=True,
     dag=retrain_dag,
 )
 
