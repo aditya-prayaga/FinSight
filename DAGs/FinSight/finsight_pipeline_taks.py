@@ -1,4 +1,3 @@
-from FinSight.finsight_pipeline_functions import calculate_and_display_anomalies, check_and_email_anomalies
 from airflow.operators.python_operator import PythonOperator#,# ExternalTaskMarker
 from airflow.sensors.external_task_sensor import ExternalTaskSensor
 from airflow import DAG
@@ -6,6 +5,9 @@ from datetime import datetime
 from airflow import configuration as conf
 import sys, os
 import functools
+# from airflow.operators.email_operator import EmailOperator
+# from airflow.operators.python_operator import PythonOperator
+# from airflow.utils.email import send_email
 # from airflow.models import Variable
 # import smtplib
 # from email.mime.text import MIMEText
@@ -46,9 +48,10 @@ download_and_uploadToDVCBucket_task = PythonOperator(
     provide_context=True,
 )
 
+
 visualize_raw_data_task = PythonOperator(
     task_id='visualize_data',
-    op_args=[download_and_uploadToDVCBucket_task.output, "/opt/airflow/visualizations/data1-viz.png"],
+    op_args=[download_and_uploadToDVCBucket_task.output, "./visualizations/raw-data-viz.png"],
     python_callable=visualize_raw_data,
     provide_context=True,
 )
@@ -160,17 +163,23 @@ calculate_and_display_anomalies_eval_task = PythonOperator(
 )
 generate_scheme_and_stats_training_task.set_downstream(calculate_and_display_anomalies_eval_task)
 
-send_anomalies_notification_task = PythonOperator(
-    task_id='send_anomalies_notification',
-    python_callable=check_and_email_anomalies,
-    op_kwargs={'anomalies': "{{ ti.xcom_pull(task_ids='calculate_and_display_anomalies_eval', key='return_value') }}"},
-    dag=dag,
-)
+# def check_and_email_anomalies(ti):
+#     anomalies_data = ti.xcom_pull(task_ids='calculate_and_display_anomalies_eval')
+#     if anomalies_data.empty:
+#         subject = "No Anomalies Detected"
+#         body = "No anomalies were detected in the evaluation data."
+#     else:
+#         subject = "Anomalies Detected"
+#         body = f"Anomalies detected in the evaluation data:\n{anomalies_data}"
+    
+#     send_email(to="prayaga.a@northeastern.edu", subject=subject, html_content=body)
 
-
-# Setting dependencies
-
-calculate_and_display_anomalies_eval_task >> send_anomalies_notification_task
+# send_anomalies_notification_task = PythonOperator(
+#     task_id='send_anomalies_notification',
+#     python_callable=check_and_email_anomalies,
+#     provide_context=True,
+#     dag=dag,
+# )
 
 
 # calculate_and_display_anomalies_eval_task = PythonOperator(
@@ -209,6 +218,7 @@ apply_transformation_eval_task = PythonOperator(
     op_args=[divide_train_eval_test_splits_task.output["eval"]],
     dag=dag,
 )
+
 apply_transformation_training_task.set_downstream(apply_transformation_eval_task)
 
 apply_transformation_test_task = PythonOperator(
@@ -218,15 +228,10 @@ apply_transformation_test_task = PythonOperator(
     op_args=[divide_train_eval_test_splits_task.output["test"]],
     dag=dag,
 )
+
 apply_transformation_training_task.set_downstream(apply_transformation_test_task)
 
 
-send_anomalies_notification_task = PythonOperator(
-    task_id='send_anomalies_notification',
-    python_callable=check_and_email_anomalies,
-    op_kwargs={'anomalies': "{{ ti.xcom_pull(task_ids='calculate_and_display_anomalies_eval', key='return_value') }}"},
-    dag=dag,
-)
 
 # 
 
@@ -258,20 +263,21 @@ hyper_parameter_tuning_task = PythonOperator(
     task_id='hyper_parameter_tuning',
     python_callable=hyper_parameter_tuning,
     provide_context=True,
-    # op_args=[divide_features_and_labels_task.output],
     op_kwargs={'x':  divide_features_and_labels_task.output['x'], 'y':  divide_features_and_labels_task.output['y']},
     dag=dag,
 )
+
 
 training_task = PythonOperator(
     task_id='training',
     python_callable=training,
     provide_context=True,
     op_args=[hyper_parameter_tuning_task.output],
-    op_kwargs={'x':  divide_features_and_labels_task.output['x'], 'y':  divide_features_and_labels_task.output['y']},
+    op_kwargs={'x': divide_features_and_labels_task.output['x'], 'y': divide_features_and_labels_task.output['y']},
     dag=dag,
 )
 hyper_parameter_tuning_task.set_downstream(training_task)
+
 
 
 load_and_predict_task = PythonOperator(
@@ -294,8 +300,13 @@ evaluate_and_visualize_task = PythonOperator(
 
 
 
-
+# parent_task = ExternalTaskSensor(
+#     task_id="parent_task",
+#     external_dag_id="FinSight_pipeline",
+#     external_task_id="handle_missing_values_in_training_data",
+#     dag=retrain_dag,
+# )
 
 
 # Set the task dependencies
-download_and_uploadToDVCBucket_task >> visualize_raw_data_task >> divide_train_eval_test_splits_task >> handle_missing_values_in_training_data_task
+download_and_uploadToDVCBucket_task >> visualize_raw_data_task >> divide_train_eval_test_splits_task >> handle_missing_values_in_training_data_task 
