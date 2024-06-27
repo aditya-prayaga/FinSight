@@ -48,13 +48,15 @@ def test_download_and_uploadToDVCBucket_positive(mocker):
         'Close': [110, 210],
         'Volume': [1000, 1500],
     })
-    mocker.patch('yfinance.download', return_value=mock_stock_data)
+    with patch('yfinance.download', return_value=mock_stock_data) as mock_download:
+        download_and_uploadToDVCBucket(ticker_symbol=ticker, start_date=start, end_date=end, ti=mock_task_instance)
 
-    download_and_uploadToDVCBucket(ticker_symbol=ticker, start_date=start, end_date=end, ti=mock_task_instance)
+        # Ensure the yfinance.download method was called with the correct parameters
+        mock_download.assert_called_once_with(ticker, start=start, end=end)
 
+    # Verify the data was pushed to XCom
     assert 'stock_data' in mock_task_instance.xcom_push_results
     pd.testing.assert_frame_equal(mock_task_instance.xcom_push_results['stock_data'], mock_stock_data)
-
 def test_download_and_uploadToDVCBucket_negative(mocker):
     ticker = "INVALID_TICKER"
     start = "2002-01-01"
