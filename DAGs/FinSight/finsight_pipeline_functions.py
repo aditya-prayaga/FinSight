@@ -795,21 +795,3 @@ def evaluate_and_visualize(predictions, y, ti, save_path='/opt/airflow/visualiza
         raise
     finally:
         mlflow.end_run()
- 
-# # Lets create a Flask API to show sucess or failure of the main dag
-# app = Flask(__name__)
-
-# # Function to start Flask app
-# def start_flask_app():
-#     app.run(host='0.0.0.0', port=5001)
-
-# # Flask routes
-# @app.route('/predict', methods=['POST'])
-# def predict():
-#     data = request.get_json()  # Get data as JSON
-#     Open = float(data['Open'])
-#     Close = float(data['Close'])
-#     # petal_length = float(data['petal_length'])
-#     # petal_width = float(data['petal_width'])
-
-#     print(Open, Close)

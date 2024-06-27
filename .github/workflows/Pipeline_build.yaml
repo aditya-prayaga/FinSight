@@ -69,5 +69,5 @@ jobs:
         for instance in $INSTANCES; do
             echo "Recreating instance $instance ..."
             gcloud compute instance-groups managed recreate-instances $INSTANCE_GROUP --instances $instance --zone us-east1-b
-            sleep 500
-        done
+            sleep 180
+        done  
