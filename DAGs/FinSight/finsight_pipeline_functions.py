@@ -202,10 +202,6 @@ def divide_train_eval_test_splits(df,ti):
     finally:
         mlflow.end_run()
 
-import pandas as pd
-import logging
-import mlflow
-
 def handle_missing_values(df):
     """
     Handles null values in the DataFrame:
@@ -220,11 +216,11 @@ def handle_missing_values(df):
     mlflow.start_run(run_name="Handle Missing Values - PreProcessing Step 1")
     try:
         logging.info("Handling missing values.")
-        logging.info("Dataset before handling missing values:\n{}".format(df.head()))
-
+        logging.info("Dataset before handling missing values:\n{}".format(df))
+        
+        # df = handle_null_open(df)
         df.fillna(method='ffill', inplace=True)
 
-        logging.info("Dataset after handling missing values:\n{}".format(df.head()))
         return df
     except Exception as e:
         logging.error(f"Failed to handle missing values: {e}")
