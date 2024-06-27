@@ -28,6 +28,8 @@ def get_retrain_dataset(file_pattern):
     # # mlflow.start_run(run_name="Retraining")
     # print(file_path)
     # time.sleep(15)
+    if not file_pattern:
+        raise ValueError("The file pattern is empty. Please provide a valid file pattern.")
     try:
         logging.info("Starting Retraining")
         # Loop to continuously check for the file
@@ -38,11 +40,12 @@ def get_retrain_dataset(file_pattern):
         
         # Get a list of all files matching the pattern
         file_list = glob.glob(file_pattern)
+        logging.info(f"Number of files found: {len(file_list)}")
         
         # Read each file into a DataFrame and store in a list
         data_frames = []
         for file in file_list:
-            logging.info(f"Reading file: {file}")
+            logging.info("All files read into DataFrames.")
             df = pd.read_csv(file)
             data_frames.append(df)
         
@@ -51,8 +54,8 @@ def get_retrain_dataset(file_pattern):
         df = combined_df['Open'].values
 
         # Reshape the data
-        df = df.reshape(-1, 1) 
-        df = pd.DataFrame(df)
+        open_values = combined_df['Open'].values.reshape(-1, 1)
+        df = pd.DataFrame(open_values, columns=['Open'])
         
         logging.info("All files read and combined into a single DataFrame.")
         return df
