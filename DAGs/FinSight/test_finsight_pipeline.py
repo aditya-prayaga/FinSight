@@ -189,16 +189,20 @@ def test_apply_transformation_positive():
 
     result_df = apply_transformation(mock_df.copy())
 
+    # Define columns to transform
+    columns_to_scale = ['Volume', 'Open', 'Close', 'High', 'Low', 'Adj Close']
+    
+    # Initialize scaler
     scaler = MinMaxScaler(feature_range=(0, 1))
-    expected_df = mock_df.copy()
-    expected_df['Volume'] = scaler.fit_transform(expected_df[['Volume']])
-    expected_df['Open'] = scaler.fit_transform(expected_df[['Open']])
-    expected_df['Close'] = scaler.fit_transform(expected_df[['Close']])
-    expected_df['High'] = scaler.fit_transform(expected_df[['High']])
-    expected_df['Low'] = scaler.fit_transform(expected_df[['Low']])
-    expected_df['Adj Close'] = scaler.fit_transform(expected_df[['Adj Close']])
 
+    # Apply scaling to expected DataFrame
+    expected_df = mock_df.copy()
+    for col in columns_to_scale:
+        expected_df[col] = scaler.fit_transform(expected_df[[col]])
+
+    # Assert equality
     pd.testing.assert_frame_equal(result_df, expected_df)
+
 
 def test_apply_transformation_negative():
     with pytest.raises(Exception):
