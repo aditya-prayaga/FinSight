@@ -22,6 +22,10 @@ Adaptive Stock Prediction and Monitoring Pipeline
 19. [Alert System](#retraining-dag)
 <!-- 18. [Conclusion](#conclusion) -->
 
+### Architecture
+
+![x](./images/FinSight%20Architecture.png)
+
 ### Introduction
 This project demonstrates a comprehensive pipeline for processing stock data and making a prediction. It includes data preprocessing, hyper-parameter tuning, modelling and training with MlFlow dashboards, evaluating and testing, workflow orchestration with Apache Airflow, data versioning with DVC, schema generation, and anomaly detection. The project is documented to ensure replication on other machines.
 
@@ -378,6 +382,4 @@ Key Points:
 - **Task Dependencies:** The tasks are sequenced to ensure proper workflow, starting from data ingestion to retraining the model.
 - **MLflow Integration:** Although not explicitly shown in the retraining tasks, MLflow can be integrated to log the parameters and metrics during the retraining process.
 
-### Architecture
 
-![x](./images/FinSight%20Architecture.png)
