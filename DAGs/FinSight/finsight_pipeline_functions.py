@@ -208,7 +208,7 @@ def handle_missing_values(df):
     - Forward fills null values in all columns.
 
     Parameters:
-    df: Input stock data.
+    df: Input DataFrame.
 
     Returns:
     pd.DataFrame: DataFrame with null values handled.
@@ -216,11 +216,11 @@ def handle_missing_values(df):
     mlflow.start_run(run_name="Handle Missing Values - PreProcessing Step 1")
     try:
         logging.info("Handling missing values.")
-        logging.info("Dataset before handling missing values:\n{}".format(df))
+        logging.info("Dataset before handling missing values:\n{}".format(df.head()))
 
-        # df = handle_null_open(df)
         df.fillna(method='ffill', inplace=True)
 
+        logging.info("Dataset after handling missing values:\n{}".format(df.head()))
         return df
     except Exception as e:
         logging.error(f"Failed to handle missing values: {e}")
