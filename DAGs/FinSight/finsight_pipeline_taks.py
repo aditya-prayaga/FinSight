@@ -5,12 +5,6 @@ from datetime import datetime
 from airflow import configuration as conf
 import sys, os
 import functools
-# from airflow.operators.email_operator import EmailOperator
-# from airflow.operators.python_operator import PythonOperator
-# from airflow.utils.email import send_email
-# from airflow.models import Variable
-# import smtplib
-# from email.mime.text import MIMEText
 
 # Add the directory containing finsight_pipeline_functions.py to the Python path
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
@@ -78,20 +72,6 @@ handle_missing_values_in_training_data_task = PythonOperator(
     dag=dag,
 )
 
-# handle_missing_values_in_evaluation_data_task = PythonOperator(
-#     task_id='handle_missing_values_in_evaluation_data',
-#     python_callable=functools.partial(handle_missing_values_task, split='eval'),
-#     provide_context=True,
-#     dag=dag,
-# )
-
-# handle_missing_values_in_test_data_task = PythonOperator(
-#     task_id='handle_missing_values_in_test_data',
-#     python_callable=functools.partial(handle_missing_values_task, split='test'),
-#     provide_context=True,
-#     dag=dag,
-# )
-
 handle_outliers_in_training_data_task = PythonOperator(
     task_id='handle_outliers_in_training_data',
     python_callable=handle_outliers,
@@ -101,25 +81,6 @@ handle_outliers_in_training_data_task = PythonOperator(
 )
 handle_missing_values_in_training_data_task.set_downstream(handle_outliers_in_training_data_task)
 
-# handle_outliers_in_evaluation_data_task = PythonOperator(
-#     task_id='handle_outliers_in_evaluation_data',
-#     python_callable=handle_outliers,
-#     provide_context=True,
-#     op_args=[handle_missing_values_in_evaluation_data_task.output],
-#     dag=dag,
-# )
-# handle_missing_values_in_evaluation_data_task.set_downstream(handle_outliers_in_evaluation_data_task)
-
-# handle_outliers_in_test_data_task = PythonOperator(
-#     task_id='handle_outliers_in_test_data',
-#     python_callable=handle_outliers,
-#     provide_context=True,
-#     op_args=[handle_missing_values_in_test_data_task.output],
-#     dag=dag,
-# )
-# handle_missing_values_in_test_data_task.set_downstream(handle_outliers_in_test_data_task)
-
-##
 generate_scheme_and_stats_training_task = PythonOperator(
     task_id='generate_scheme_and_stats_training',
     python_callable=generate_scheme_and_stats,
@@ -129,29 +90,11 @@ generate_scheme_and_stats_training_task = PythonOperator(
 )
 handle_outliers_in_training_data_task.set_downstream(generate_scheme_and_stats_training_task)
 
-# generate_scheme_and_stats_eval_task = PythonOperator(
-#     task_id='generate_scheme_and_stats_eval',
-#     python_callable=generate_scheme_and_stats,
-#     provide_context=True,
-#     op_args=[handle_outliers_in_evaluation_data_task.output],
-#     dag=dag,
-# )
-# handle_outliers_in_evaluation_data_task.set_downstream(generate_scheme_and_stats_eval_task)
-
-# generate_scheme_and_stats_test_task = PythonOperator(
-#     task_id='generate_scheme_and_stats_test',
-#     python_callable=generate_scheme_and_stats,
-#     provide_context=True,
-#     op_args=[handle_outliers_in_test_data_task.output],
-#     dag=dag,
-# )
-# handle_outliers_in_test_data_task.set_downstream(generate_scheme_and_stats_test_task)
-
 def calculate_and_display_anomalies_task(ti, split):
     df = ti.xcom_pull(task_ids='divide_train_eval_test_splits', key=split)
     scheme = ti.xcom_pull(task_ids='generate_scheme_and_stats_training', key="schema")
     stats = ti.xcom_pull(task_ids='generate_scheme_and_stats_training', key="stats")
-    handled_df = calculate_and_display_anomalies(df, scheme, stats)
+    handled_df = calculate_and_display_anomalies(df, scheme, stats, ti)
     return handled_df
 
 
@@ -163,44 +106,6 @@ calculate_and_display_anomalies_eval_task = PythonOperator(
 )
 generate_scheme_and_stats_training_task.set_downstream(calculate_and_display_anomalies_eval_task)
 
-# def check_and_email_anomalies(ti):
-#     anomalies_data = ti.xcom_pull(task_ids='calculate_and_display_anomalies_eval')
-#     if anomalies_data.empty:
-#         subject = "No Anomalies Detected"
-#         body = "No anomalies were detected in the evaluation data."
-#     else:
-#         subject = "Anomalies Detected"
-#         body = f"Anomalies detected in the evaluation data:\n{anomalies_data}"
-    
-#     send_email(to="prayaga.a@northeastern.edu", subject=subject, html_content=body)
-
-# send_anomalies_notification_task = PythonOperator(
-#     task_id='send_anomalies_notification',
-#     python_callable=check_and_email_anomalies,
-#     provide_context=True,
-#     dag=dag,
-# )
-
-
-# calculate_and_display_anomalies_eval_task = PythonOperator(
-#     task_id='calculate_and_display_anomalies_eval',
-#     python_callable=calculate_and_display_anomalies,
-#     provide_context=True,
-#     op_args=[generate_scheme_and_stats_eval_task.output],
-#     dag=dag,
-# )
-# generate_scheme_and_stats_eval_task.set_downstream(calculate_and_display_anomalies_eval_task)
-
-# calculate_and_display_anomalies_test_task = PythonOperator(
-#     task_id='calculate_and_display_anomalies_test',
-#     python_callable=calculate_and_display_anomalies,
-#     op_args=[generate_scheme_and_stats_test_task.output],
-#     provide_context=True,
-#     dag=dag,
-# )
-# generate_scheme_and_stats_test_task.set_downstream(calculate_and_display_anomalies_test_task)
-
-##
 
 apply_transformation_training_task = PythonOperator(
     task_id='apply_transformation_training',
