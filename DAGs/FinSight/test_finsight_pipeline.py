@@ -57,6 +57,7 @@ def test_download_and_uploadToDVCBucket_positive(mocker):
     # Verify the data was pushed to XCom
     assert 'stock_data' in mock_task_instance.xcom_push_results
     pd.testing.assert_frame_equal(mock_task_instance.xcom_push_results['stock_data'], mock_stock_data)
+
 def test_download_and_uploadToDVCBucket_negative(mocker):
     ticker = "INVALID_TICKER"
     start = "2002-01-01"
@@ -160,21 +161,27 @@ def test_handle_outliers_negative():
     with pytest.raises(Exception):
         handle_outliers(None)
 
-# # Test for visualize_df
-# def test_visualize_df_positive():
-#     mock_df = pd.DataFrame({
-#         'Open': [100, 200],
-#         'Close': [110, 210],
-#         'Volume': [1000, 1500],
-#     })
+# Positive test case
+def test_visualize_df_positive():
+    # Mock input DataFrame
+    mock_df = pd.DataFrame({
+        'Open': [100, 200],
+        'Close': [110, 210],
+        'Volume': [1000, 1500],
+    })
 
-#     result_df = visualize_df(mock_df.copy())
+    # Call the function under test
+    result_df = visualize_df(mock_df.copy())
 
-#     pd.testing.assert_frame_equal(result_df, mock_df)
+    # Assert that the returned DataFrame is equal to the input DataFrame
+    pd.testing.assert_frame_equal(result_df, mock_df)
 
-# def test_visualize_df_negative():
-#     with pytest.raises(Exception):
-#         visualize_df(None)
+# Negative test case
+def test_visualize_df_negative():
+    # Assert that calling visualize_df with None raises an Exception
+    with pytest.raises(Exception):
+        visualize_df(None)
+
 
 # Test for apply_transformation
 def test_apply_transformation_positive():
