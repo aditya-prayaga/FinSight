@@ -1,4 +1,4 @@
-FROM apache/airflow:2.9.1 AS trail_airflow
+FROM apache/airflow:2.9.1-python3.9 AS trail_airflow
 USER root
 RUN apt-get update \
   && apt-get autoremove -yqq --purge \
@@ -15,7 +15,9 @@ RUN pip3 install \
     matplotlib \
     mlflow \
     optuna \
-    tensorflow \
-    keras \
+    tensorflow==2.15.0 \
+    keras==2.15.0 \
+    pytest_mock \
+    pytest \
     psutil \
     pynvml

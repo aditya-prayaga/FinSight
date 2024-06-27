@@ -16,7 +16,7 @@ RUN apt-get install -y pkg-config libhdf5-dev gcc
 # RUN pip install https://storage.googleapis.com/tensorflow/mac/cpu/tensorflow-2.6.4-py3-none-any.whl
 
 # Install any needed packages specified in requirements.txt
-RUN pip install flask waitress numpy pandas scikit-learn tensorflow==2.15.0 keras==2.15.0
+RUN pip install flask waitress numpy pandas scikit-learn tensorflow==2.15.0 keras==2.15.0 gcsfs google
 
 # Make port 5002 available to the world outside this container
 EXPOSE 5002

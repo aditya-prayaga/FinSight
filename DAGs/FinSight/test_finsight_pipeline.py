@@ -1,6 +1,4 @@
 import pytest
-from pytest_mock import mocker
-from unittest import mock
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
@@ -12,8 +10,7 @@ import logging
 # are timestamped and include information on the severity level of log messages, which aids in debugging
 # and provides clearer, more actionable logs during test execution.
 
-# Assuming these are defined in FinSight/finsight_pipeline_functions.py
-from .finsight_pipeline_functions import (
+from FinSight.finsight_pipeline_functions import (
     download_and_uploadToDVCBucket,
     visualize_raw_data,
     divide_train_eval_test_splits,

@@ -25,9 +25,6 @@ retrain_dag = DAG(
 )
 
 def get_retrain_dataset(file_pattern):
-    # # mlflow.start_run(run_name="Retraining")
-    # print(file_path)
-    # time.sleep(15)
     try:
         logging.info("Starting Retraining")
         # Loop to continuously check for the file
@@ -97,7 +94,7 @@ search_for_retraining_dataset_task = PythonOperator(
     task_id='search_for_retraining_dataset',
     python_callable=get_retrain_dataset,
     provide_context=True,
-    op_args=["./mlruns/retraining-data/*.csv"],
+    op_args=["./data/retrain/*.csv"],
     dag=retrain_dag,
 )
 

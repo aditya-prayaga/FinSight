@@ -1,15 +1,11 @@
-# app.py
-from venv import logger
 from tensorflow.keras.models import load_model
 from flask import Flask, jsonify, request
-from sklearn.preprocessing import MinMaxScaler
 from waitress import serve
 import numpy as np
 import joblib
 import pandas as pd
-import tensorflow
-import keras
 import logging
+from google.cloud import storage
 import os
 
 # Initialize the Flask application
@@ -17,6 +13,11 @@ app = Flask(__name__)
 
 # Set up logging to debug level to capture all events
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(message)s')
+
+# Buckets Config
+storage_client = storage.Client.from_service_account_json("/app/src/.google-auth.json")
+bucket_name = "mlops_deploy_storage"
+bucket = storage_client.bucket(bucket_name)
 
 # Directory to store uploaded files for prediction
 UPLOAD_FOLDER = 'uploads'
@@ -58,6 +59,14 @@ def predict():
             x.append(df[i-50:i, 0])
         x = np.array(x)
         x = np.reshape(x, (x.shape[0], x.shape[1], 1))  # Reshape for model input
+
+        # Define your parameters
+        source_blob_name = 'model/production/stock_prediction.h5'
+        destination_file_name = './model/stock_prediction.h5'
+
+        # Download the model from GCS
+        blob = bucket.blob(source_blob_name)
+        blob.download_to_filename(destination_file_name)
 
         # Load the model and make predictions
         model = load_model("./model/stock_prediction.h5")

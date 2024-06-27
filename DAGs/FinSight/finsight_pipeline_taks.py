@@ -198,7 +198,7 @@ evaluate_and_visualize_task = PythonOperator(
     task_id='evaluate_and_visualize',
     python_callable=evaluate_and_visualize,
     provide_context=True,
-    op_args=[load_and_predict_task.output, divide_features_and_labels_task.output['y']],
+    op_args=[load_and_predict_task.output, divide_features_and_labels_task.output['x'], divide_features_and_labels_task.output['y']],
     # op_kwargs={'ti': "evaluate_and_visualize"},
     dag=dag,
 )

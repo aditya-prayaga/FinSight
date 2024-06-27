@@ -1,5 +1,5 @@
-from keras.layers import LSTM, Dropout, Dense
-from keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dropout, Dense
+from tensorflow.keras.models import Sequential
 
 
 class Model():

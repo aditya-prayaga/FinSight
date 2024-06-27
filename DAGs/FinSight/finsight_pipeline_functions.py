@@ -1,4 +1,3 @@
-from fileinput import filename
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -12,13 +11,14 @@ import json
 from functools import partial
 from google.cloud import storage
 import os
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 from functools import partial
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras import metrics
 from FinSight.model import *
+from sklearn.metrics import mean_squared_error
 import joblib
 
 
@@ -70,6 +70,8 @@ def download_and_uploadToDVCBucket(ticker_symbol, start_date, end_date, ti):
         # Save stock data to CSV
         stock_data.to_csv(filename)
         logging.info(f"Data downloaded and saved as {filename}")
+
+        mlflow.log_artifact(filename)
             
         # Upload the plot to GCS
         destination_blob_name = 'data/train/' + f"{ticker_symbol}_stock_data_{start_date}_{end_date}.csv"
@@ -208,7 +210,7 @@ def handle_missing_values(df):
     - Forward fills null values in all columns.
 
     Parameters:
-    df: Input DataFrame.
+    df: Input stock data.
 
     Returns:
     pd.DataFrame: DataFrame with null values handled.
@@ -217,7 +219,7 @@ def handle_missing_values(df):
     try:
         logging.info("Handling missing values.")
         logging.info("Dataset before handling missing values:\n{}".format(df))
-        
+
         # df = handle_null_open(df)
         df.fillna(method='ffill', inplace=True)
 
@@ -355,16 +357,6 @@ def apply_transformation_eval_test(df,ti):
         df = scaler.transform(df)        
         df = pd.DataFrame(df)
         ti.xcom_push(key='scalar', value=scaler)
-        joblib.dump(scaler, './model/scaler.joblib')
-
-         
-        file_name = os.path.basename("./model/scaler.joblib")
-        
-        # Upload the plot to GCS
-        destination_blob_name = 'model/archived/' + file_name
-        blob = bucket.blob(destination_blob_name)
-        blob.upload_from_filename()
-
 
     except Exception as e:
         logging.error(f"Failed to apply transformations: {e}")
@@ -569,7 +561,7 @@ def divide_features_and_labels(train_df, eval_df, test_df, ti):
     - test_df (pd.DataFrame): DataFrame containing the testing data.
     - ti (TaskInstance): Airflow TaskInstance for XCom operations.
     """
-    mlflow.start_run(run_name="Divide Data set into features and labels")
+    mlflow.start_run(run_name="Divide Data set into features and labels")   
     try:
         dfs = [train_df, eval_df, test_df]
         x_train = []
@@ -683,15 +675,15 @@ def hyper_parameter_tuning(x,y):
 
 def training(best_params, x, y):
     """
-    Train the model with the best hyperparameters.
+   Train the model with the best hyperparameters
 
     Parameters:
-    - best_params (dict): Best parameters from Hyperparameter Tuning
-    - x (list): Features to train on
-    - y (list): Labels to evaluate against
+    - best_params: Best parameters from Hyperparameter Tuning
+    - x: Features to train on
+    - y: Labels to evaluate against
 
     Returns:
-    - output_path (str): Saved model output path.
+    output_path: Saved model output path.
     """
     mlflow.start_run(run_name="training")  
     try:
@@ -726,9 +718,6 @@ def training(best_params, x, y):
     finally:
         mlflow.end_run()
         return output_path
-    
-
-
 
 
 def load_and_predict(x, file_path,ti):
@@ -752,6 +741,15 @@ def load_and_predict(x, file_path,ti):
         x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1)) 
         scaler = ti.xcom_pull(task_ids='apply_transformation_training', key='scalar')
 
+        # Upload Scaler file
+        joblib.dump(scaler, './model/scaler.joblib')
+        file_name = os.path.basename("./model/scaler.joblib")
+        
+        # Upload the plot to GCS
+        destination_blob_name = 'model/archived/' + file_name
+        blob = bucket.blob(destination_blob_name)
+        blob.upload_from_filename('./model/scaler.joblib')
+
         predictions =  model.predict(x_test)
         predictions = scaler.inverse_transform(predictions)
 
@@ -762,7 +760,7 @@ def load_and_predict(x, file_path,ti):
         mlflow.end_run()
         return predictions
 
-def evaluate_and_visualize(predictions, y, ti, save_path='/opt/airflow/visualizations/act.png'):
+def evaluate_and_visualize(newly_trained_model_predictions, x, y, ti, save_path='/opt/airflow/visualizations/act.png'):
     """
    Evaluate and visualize the predictions 
 
@@ -775,20 +773,52 @@ def evaluate_and_visualize(predictions, y, ti, save_path='/opt/airflow/visualiza
     """
     mlflow.start_run(run_name="Evaluate and Visualize")  
     try:
-        # Visualize the difference between actual vs predicted y-values
-        plt.figure(figsize=(10, 6))
-        y_test_actual = np.array(y[2])
         
+        x_test = np.array(x[2])
+        x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1)) 
         scaler = ti.xcom_pull(task_ids='apply_transformation_training', key='scalar')
+        y_test_actual = np.array(y[2])       
         y_test_scaled = scaler.inverse_transform(y_test_actual.reshape(-1, 1))
+
+        # Define your parameters
+        source_blob_name = 'model/production/stock_prediction.h5'
+        destination_file_name = './model/stock_prediction.h5'
+
+        # Download the model from GCS
+        blob = bucket.blob(source_blob_name)
+        blob.download_to_filename(destination_file_name)
         
-        plt.plot(y_test_scaled, label='Actual Values')
-        plt.plot(predictions, label='Predicted Values')
-        plt.title('Actual vs Predicted Values')
-        plt.ylabel('Stock Price')
-        plt.legend()
-        plt.savefig(save_path)
-        plt.show()
+        # Load the models using MLflow
+        gcs_model = load_model(destination_file_name)
+
+        gcs_model_predictions = gcs_model.predict(x_test)
+        gcs_model_predictions = scaler.inverse_transform(gcs_model_predictions)
+
+        gcs_model_mse = mean_squared_error(y_test_scaled, gcs_model_predictions)
+        newly_trained_model_mse = mean_squared_error(y_test_scaled, newly_trained_model_predictions)
+        
+        if gcs_model_mse > newly_trained_model_mse:
+            logging.info("The newly trained model is better than the model in GCS")
+            logging.info("Pushing model to Staging")
+
+
+            file_name = os.path.basename("./model/trained_stock_prediction.h5")
+        
+            # Upload the plot to GCS
+            destination_blob_name = 'model/staging/' + file_name
+            blob = bucket.blob(destination_blob_name)
+            blob.upload_from_filename("./model/trained_stock_prediction.h5")
+
+
+            # Visualize the difference between actual vs predicted y-values
+            plt.figure(figsize=(10, 6))
+            plt.plot(y_test_scaled, label='Actual Values')
+            plt.plot(newly_trained_model_predictions, label='Predicted Values')
+            plt.title('Actual vs Predicted Values')
+            plt.ylabel('Stock Price')
+            plt.legend()
+            plt.savefig(save_path)
+            plt.show()
 
     except Exception as e:
         logging.error(f"Error in Evaluate and Visualize: {e}")
