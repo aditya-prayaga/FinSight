@@ -1,3 +1,4 @@
+from fileinput import filename
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -7,7 +8,9 @@ import mlflow
 import numpy as np
 import optuna
 import time
+import json
 from functools import partial
+from google.cloud import storage
 import os
 from keras.models import load_model
 from functools import partial
@@ -16,10 +19,7 @@ from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras import metrics
 from FinSight.model import *
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from airflow.utils.email import send_email_smtp
+import joblib
 
 
 # Configure logging
@@ -47,6 +47,11 @@ mlflow.set_experiment(experiment_name)
 mlflow.autolog()
 mlflow.enable_system_metrics_logging()
 
+# Buckets Config
+storage_client = storage.Client.from_service_account_json("./dags/FinSight/.google-auth.json")
+bucket_name = "mlops_deploy_storage"
+bucket = storage_client.bucket(bucket_name)
+
 def download_and_uploadToDVCBucket(ticker_symbol, start_date, end_date, ti):
     """
     Download stock data from Yahoo Finance and upload it to a Google Cloud Storage bucket.
@@ -60,25 +65,18 @@ def download_and_uploadToDVCBucket(ticker_symbol, start_date, end_date, ti):
         mlflow.log_param("end_date", end_date)
         
         stock_data = yf.download(ticker_symbol, start=start_date, end=end_date)
-        filename = os.path.abspath(os.path.join(os.getcwd())) + "/" + f"{ticker_symbol}_stock_data_{start_date}_{end_date}.csv"
+        filename = "./data/train/" + f"{ticker_symbol}_stock_data_{start_date}_{end_date}.csv"
         
         # Save stock data to CSV
         stock_data.to_csv(filename)
         logging.info(f"Data downloaded and saved as {filename}")
-        
-        # # Log the CSV file as an artifact
-        # print("hello1:", filename)
-        # import getpass
-        # print("user: ",         getpass.getuser()) 
-        # print("world:", os.path.abspath(os.path.join(os.getcwd(), "..", "mlruns","artifacts")))
-        # # os.environ['MLFLOW_TRACKING_URI'] = "/mlflow/artifacts"
-        # print(mlflow.get)
-        # mlflow.log_artifact(filename)
-        
-        # Push the stock_data to XCom
-        # ti.xcom_push(key='stock_data', value=stock_data)
-        # Log dataset information
-        # mlflow.log_input(name=os.path.basename(filename), context="dataset", path=filename)
+            
+        # Upload the plot to GCS
+        destination_blob_name = 'data/train/' + f"{ticker_symbol}_stock_data_{start_date}_{end_date}.csv"
+        blob = bucket.blob(destination_blob_name)
+        blob.upload_from_filename(filename)
+
+        return stock_data
 
     except Exception as e:
         logging.error(f"Failed to download or upload data: {e}")
@@ -96,9 +94,6 @@ def visualize_raw_data(stock_data,file_path):
     mlflow.start_run(run_name="Visualize Data")
     time.sleep(15)
     try:
-        # logging.info(f"Reading data from {file_path}")
-        # Pull the DataFrame from XCom
-        # stock_data_dict = ti.xcom_pull(task_ids='download_upload_data', key='stock_data')
         df = pd.DataFrame(stock_data)
 
         logging.info("Converting 'Date' column to datetime format and setting it as index.")
@@ -133,6 +128,14 @@ def visualize_raw_data(stock_data,file_path):
         plt.tight_layout(rect=[0, 0, 1, 0.96])
         
         plt.savefig(file_path)
+        
+        file_name = os.path.basename(file_path)
+        
+        # Upload the plot to GCS
+        destination_blob_name = 'visualization/' + file_name
+        blob = bucket.blob(destination_blob_name)
+        blob.upload_from_filename(file_path)
+
     except Exception as e:
         logging.error(f"Failed to visualize Raw data: {e}")
         raise
@@ -192,6 +195,7 @@ def divide_train_eval_test_splits(df,ti):
         ti.xcom_push(key='eval', value=eval_df)
         ti.xcom_push(key='test', value=test_df)
         return pd.DataFrame(train_df), pd.DataFrame(eval_df), pd.DataFrame(test_df)
+
     except Exception as e:
         logging.error(f"Failed to split data: {e}")
         raise
@@ -216,8 +220,6 @@ def handle_missing_values(df):
 
         # df = handle_null_open(df)
         df.fillna(method='ffill', inplace=True)
-
-        # logging.info("Dataset after handling missing values:\n{}".format(df.head()))
 
         return df
     except Exception as e:
@@ -295,7 +297,14 @@ def visualize_df(df, file_path):
         plt.tight_layout(rect=[0, 0, 1, 0.96])
         
         plt.savefig(file_path)
-        plt.show()
+ 
+        file_name = os.path.basename(file_path)
+        
+        # Upload the plot to GCS
+        destination_blob_name = 'visualization/' + file_name
+        blob = bucket.blob(destination_blob_name)
+        blob.upload_from_filename(file_path)
+
 
     except Exception as e:
         logging.error(f"Failed to visualize DataFrame: {e}")
@@ -346,6 +355,16 @@ def apply_transformation_eval_test(df,ti):
         df = scaler.transform(df)        
         df = pd.DataFrame(df)
         ti.xcom_push(key='scalar', value=scaler)
+        joblib.dump(scaler, './model/scaler.joblib')
+
+         
+        file_name = os.path.basename("./model/scaler.joblib")
+        
+        # Upload the plot to GCS
+        destination_blob_name = 'model/archived/' + file_name
+        blob = bucket.blob(destination_blob_name)
+        blob.upload_from_filename()
+
 
     except Exception as e:
         logging.error(f"Failed to apply transformations: {e}")
@@ -364,7 +383,7 @@ def generate_schema(df):
     Returns:
     dict: Schema definition with column types.
     """
-    mlflow.start_run(run_name="Generate Schema")   
+    mlflow.start_run(run_name="Generate Schema", nested=True)   
     try: 
         schema = {}
         for column in df.columns:
@@ -387,7 +406,7 @@ def generate_statistics(df):
     Returns:
     dict: Dictionary with descriptive statistics.
     """
-    mlflow.start_run(run_name="Generate Schema")   
+    mlflow.start_run(run_name="Generate Schema", nested=True)   
     try: 
         # Generate descriptive statistics
         statistics = df.describe(include='all').transpose()
@@ -407,7 +426,7 @@ def generate_scheme_and_stats(df,ti):
     """
     Placeholder function for generating and validating scheme.
     """
-    mlflow.start_run(run_name="Generate Schema & Statistics")   
+    mlflow.start_run(run_name="Generate Schema & Statistics", nested=True)   
     try:
         logging.info("Generating scheme and stats.")
         
@@ -423,6 +442,16 @@ def generate_scheme_and_stats(df,ti):
         ti.xcom_push(key='schema', value=schema)
         ti.xcom_push(key='stats', value=data_stats)
         
+        temp = {'RunID':ti.dag_run.run_id,'schema':str(schema),'stats':data_stats}
+
+        # Upload the plot to GCS
+        temp_str = json.dumps(temp)
+
+        # Upload the JSON string to GCS
+        destination_blob_name = 'data/schema_and_stats/schema_and_stats.json'
+        blob = bucket.blob(destination_blob_name)
+        blob.upload_from_string(temp_str, content_type='application/json')
+
     except Exception as e:
         logging.error(f"Failed to generate and validate scheme: {e}")
         raise
@@ -442,7 +471,7 @@ def detect_anomalies(eval_df, training_schema, training_stats):
     Returns:
     dict: Detected anomalies including missing values and outliers.
     """
-    mlflow.start_run(run_name="Detecting Anomalies")   
+    mlflow.start_run(run_name="Detecting Anomalies", nested=True)   
     try:
         anomalies = {'missing_values': {}, 'outliers': {}, 'schema_mismatches': {}, 'statistical_anomalies': {}}
 
@@ -487,7 +516,7 @@ def detect_anomalies(eval_df, training_schema, training_stats):
         mlflow.end_run()
         return anomalies
 
-def calculate_and_display_anomalies(eval_df, training_schema, training_stats):
+def calculate_and_display_anomalies(eval_df, training_schema, training_stats, ti):
     """
     Calculate and display anomalies in the evaluation DataFrame by comparing it against the training schema and statistics.
 
@@ -500,7 +529,7 @@ def calculate_and_display_anomalies(eval_df, training_schema, training_stats):
     Returns:
     pd.DataFrame: The original evaluation DataFrame after anomaly detection.
     """
-    mlflow.start_run(run_name="Calculating anomalies from Eval Df and Training (Schema, Stats)")   
+    mlflow.start_run(run_name="Calculating anomalies from Eval Df and Training (Schema, Stats)", nested=True)   
     try:
         logging.info("Calculating and Displaying Anomalies")
 
@@ -512,75 +541,23 @@ def calculate_and_display_anomalies(eval_df, training_schema, training_stats):
         anomalies = detect_anomalies(eval_df, training_schema, training_stats)
         logging.info(f"Anomalies: {anomalies}")
 
+        temp = {'RunID':ti.dag_run.run_id,'Anomalies':anomalies}
+
+        # Upload the plot to GCS
+        temp_str = json.dumps(temp)
+
+        # Upload the JSON string to GCS
+        destination_blob_name = 'data/anomalies/anomalies.json'
+        blob = bucket.blob(destination_blob_name)
+        blob.upload_from_string(temp_str, content_type='application/json')
         
     except Exception as e:
         logging.error(f"Failed to calculate and display anomalies: {e}")
         raise
     finally:
         mlflow.end_run()
-        return eval_df
+        return anomalies
     
-def check_and_email_anomalies(anomalies, ti):
-    """
-    Checks if there are any anomalies and sends an email notification using Airflow's configured SMTP service.
-
-    Parameters:
-    anomalies (dict): Dictionary containing anomalies detected.
-    ti (TaskInstance): Airflow TaskInstance for XCom operations.
-    """
-    receiver_email = "vishwaub652@gmail.com"
-    subject = "Anomaly Detection Results"
-
-    # Prepare the email body based on anomalies
-    if any(anomalies.values()):
-        body = f"Anomalies detected: {anomalies}"
-    else:
-        body = "No anomalies were detected."
-
-    # Use Airflow's send_email function to send the email
-    send_email_smtp(receiver_email, subject, body)
-
-# def check_and_email_anomalies(anomalies, ti):
-#     """
-#     Checks if there are any anomalies and sends an email notification.
-
-#     Parameters:
-#     anomalies (dict): Dictionary containing anomalies detected.
-#     ti (TaskInstance): Airflow TaskInstance for XCom operations.
-#     """
-#     sender_email = "smtp.gmail.com"
-#     receiver_email = "vishwaub652@gmail.com"
-#     password = "itlo rdob romi nxdt"  # Consider using Airflow secrets management to handle credentials securely
-
-#     # Create MIME object
-#     msg = MIMEMultipart()
-#     msg['From'] = sender_email
-#     msg['To'] = receiver_email
-#     msg['Subject'] = 'Anomaly Detection Results'
-
-#     # Check if anomalies dictionary contains any anomalies
-#     if any(anomalies.values()):
-#         body = f"Anomalies detected: {anomalies}"
-#         msg.attach(MIMEText(body, 'plain'))
-#         text = msg.as_string()
-#     else:
-#         body = "No anomalies were detected."
-#         msg.attach(MIMEText(body, 'plain'))
-#         text = msg.as_string()
-
-#     # Setup the SMTP server
-#     server = smtplib.SMTP('smtp.gmail.com', 587)
-#     server.starttls()
-#     server.login(sender_email, password)
-#     server.sendmail(sender_email, receiver_email, text)
-#     server.quit()    
-
-# Training Phase
-
-# Device configuration
-# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
 # Create the function that will help us to create the datasets
 def divide_features_and_labels(train_df, eval_df, test_df, ti):
     """
@@ -749,6 +726,10 @@ def training(best_params, x, y):
     finally:
         mlflow.end_run()
         return output_path
+    
+
+
+
 
 def load_and_predict(x, file_path,ti):
     """
@@ -814,21 +795,3 @@ def evaluate_and_visualize(predictions, y, ti, save_path='/opt/airflow/visualiza
         raise
     finally:
         mlflow.end_run()
- 
-# # Lets create a Flask API to show sucess or failure of the main dag
-# app = Flask(__name__)
-
-# # Function to start Flask app
-# def start_flask_app():
-#     app.run(host='0.0.0.0', port=5001)
-
-# # Flask routes
-# @app.route('/predict', methods=['POST'])
-# def predict():
-#     data = request.get_json()  # Get data as JSON
-#     Open = float(data['Open'])
-#     Close = float(data['Close'])
-#     # petal_length = float(data['petal_length'])
-#     # petal_width = float(data['petal_width'])
-
-#     print(Open, Close)

@@ -11,10 +11,9 @@ from airflow.models.xcom_arg import XComArg
 from FinSight.finsight_pipeline_functions import *
 from keras.models import load_model
 
-# Suppress logging from the git module to avoid clutter
-os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
-# Define the DAG with the necessary metadata and scheduling options
+os.environ["GIT_PYTHON_REFRESH"] = "quiet"
+# Define the DAG
 retrain_dag = DAG(
     dag_id='Retrain_FinSight_pipeline',
     default_args={
@@ -22,59 +21,78 @@ retrain_dag = DAG(
         'start_date': datetime(2024, 6, 6),
         'email_on_failure': True,
     },
-    schedule_interval=None,  # No scheduling, trigger manually or externally
+    schedule_interval=None,
 )
 
 def get_retrain_dataset(file_pattern):
+    # # mlflow.start_run(run_name="Retraining")
+    # print(file_path)
+    # time.sleep(15)
     try:
         logging.info("Starting Retraining")
-        # Wait until files are available in the specified pattern
-        while not glob.glob(file_pattern):
+        # Loop to continuously check for the file
+        while not  glob.glob(file_pattern):
             logging.info(f"File {file_pattern} not found, checking again in 10 seconds...")
             time.sleep(10)
-        
         logging.info(f"Files matching pattern {file_pattern} found, proceeding with retraining...")
-        # Combine data from all found files into a single DataFrame
-        data_frames = [pd.read_csv(file) for file in glob.glob(file_pattern)]
+        
+        # Get a list of all files matching the pattern
+        file_list = glob.glob(file_pattern)
+        
+        # Read each file into a DataFrame and store in a list
+        data_frames = []
+        for file in file_list:
+            logging.info(f"Reading file: {file}")
+            df = pd.read_csv(file)
+            data_frames.append(df)
+        
+        # Concatenate all DataFrames into a single DataFrame
         combined_df = pd.concat(data_frames, ignore_index=True)
+        df = combined_df['Open'].values
+
+        # Reshape the data
+        df = df.reshape(-1, 1) 
+        df = pd.DataFrame(df)
+        
         logging.info("All files read and combined into a single DataFrame.")
-        return combined_df
+        return df
     except Exception as e:
         logging.error(f"Failed to Retrain: {e}")
         raise
 
-def divide_features_and_labels(retrain_dataset, ti):
+def divide_features_and_labels(retrain_dataset,ti):
     try:
-        x, y = [], []
-        window_size = 50  # Window size for rolling lookback for features
-        for i in range(window_size, retrain_dataset.shape[0]):
-            x.append(retrain_dataset.iloc[i-window_size:i, 0]) 
+        x = []
+        y = []
+        for i in range(50, retrain_dataset.shape[0]):
+            x.append(retrain_dataset.iloc[i-50:i, 0]) 
             y.append(retrain_dataset.iloc[i, 0]) 
-        x, y = pd.DataFrame(x), pd.DataFrame(y)
+        x = pd.DataFrame(x) 
+        y = pd.DataFrame(y)
+
         ti.xcom_push(key='x', value=x)
         ti.xcom_push(key='y', value=y)
-        return x, y
+
+        return x,y
     except Exception as e:
         logging.error(f"Error in Dividing Features and Labels: {e}")
         raise
 
-def retraining(model_file_path, x_train, y_train, best_params):
-    try:
+def retraining(model_file_path,x_train,y_train,best_params):
+
+        # Load and predict
         model = load_model(model_file_path)
+
+        # Compile the model
         model.compile(loss='mean_squared_error', optimizer='adam')
+
         model.fit(x_train, y_train, epochs=1, batch_size=best_params["batch_size"], verbose=1)
-        output_path = os.path.join(os.path.dirname(model_file_path), 'retrained_stock_prediction.h5')
+        output_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "model", 'retrained_stock_prediction.h5')
         model.save(output_path)
-        return output_path
-    except Exception as e:
-        logging.error(f"Error during retraining: {e}")
-        raise
 
 def evaluate_model():
-    # This function should be implemented to evaluate the retrained model
     pass
 
-# Set up the DAG tasks using the PythonOperator
 search_for_retraining_dataset_task = PythonOperator(
     task_id='search_for_retraining_dataset',
     python_callable=get_retrain_dataset,
@@ -91,6 +109,7 @@ handle_missing_values_in_retraining_data_task = PythonOperator(
     dag=retrain_dag,
 )
 
+
 handle_outliers_in_retraining_data_task = PythonOperator(
     task_id='handle_outliers_in_retraining_data',
     python_callable=handle_outliers,
@@ -98,6 +117,7 @@ handle_outliers_in_retraining_data_task = PythonOperator(
     op_args=[handle_missing_values_in_retraining_data_task.output],
     dag=retrain_dag,
 )
+
 
 apply_transformation_retraining_task = PythonOperator(
     task_id='apply_transformation_retraining',
@@ -129,10 +149,7 @@ retraining_task = PythonOperator(
     provide_context=True,
     op_kwargs={
         "model_file_path": "./model/trained_stock_prediction.h5",
-        'best_params': {
-            'batch_size': 75,
-            # Additional params can be added here
-        },
+        'best_params': {'units': 106, 'num_layers': 1, 'dropout_rate': 0.13736332505446322, 'learning_rate': 0.0008486320428172737, 'batch_size': 75 },
         'x_train': divide_features_and_labels_task.output['x'], 
         'y_train': divide_features_and_labels_task.output['y']
     },
@@ -143,10 +160,11 @@ evaluating_models_task = PythonOperator(
     task_id='evaluating_models',
     python_callable=evaluate_model,
     provide_context=True,
+    op_kwargs={
+    },
     dag=retrain_dag,
 )
 
-# Set up the dependencies between tasks
 search_for_retraining_dataset_task >> \
 handle_missing_values_in_retraining_data_task >> \
 handle_outliers_in_retraining_data_task >> \
@@ -155,3 +173,5 @@ visualize_retraining_refined_data_task >> \
 divide_features_and_labels_task >> \
 retraining_task >> \
 evaluating_models_task
+
+
