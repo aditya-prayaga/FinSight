@@ -557,33 +557,40 @@ def divide_features_and_labels(train_df, eval_df, test_df, ti):
     - eval_df (pd.DataFrame): DataFrame containing the evaluation data.
     - test_df (pd.DataFrame): DataFrame containing the testing data.
     - ti (TaskInstance): Airflow TaskInstance for XCom operations.
+
+    Returns:
+    None
     """
-    mlflow.start_run(run_name="Divide Data set into features and labels")   
+    def validate_df(df, df_name):
+        if df.empty:
+            raise ValueError(f"{df_name} DataFrame is empty. Please provide a valid DataFrame.")
+    
+    mlflow.start_run(run_name="Divide Data set into features and labels")
     try:
         dfs = [train_df, eval_df, test_df]
-        x_train = []
-        x_eval = []
-        x_test = []
-        y_train = []
-        y_eval = []
-        y_test = []
-        x = [x_train, x_eval, x_test]
-        y = [y_train, y_eval, y_test]
-        for ind, df in enumerate(dfs):
-            for i in range(50, df.shape[0]):
-                x[ind].append(df.iloc[i-50:i, 0].values) 
-                y[ind].append(df.iloc[i, 0]) 
+        dfs_names = ['train_df', 'eval_df', 'test_df']
+        x = [[] for _ in range(3)]
+        y = [[] for _ in range(3)]
         
+        for ind, df in enumerate(dfs):
+            validate_df(df, dfs_names[ind])
+            logging.info(f"{dfs_names[ind]} shape: {df.shape}")
+            for i in range(50, df.shape[0]):
+                x[ind].append(df.iloc[i-50:i, 0].values)
+                y[ind].append(df.iloc[i, 0])
+            logging.info(f"Processed {dfs_names[ind]}: x_len={len(x[ind])}, y_len={len(y[ind])}")
+
         ti.xcom_push(key='x', value=x)
         ti.xcom_push(key='y', value=y)
 
-        mlflow.log_params({"x": x,"y": y})
+        mlflow.log_params({"x_len": [len(xi) for xi in x], "y_len": [len(yi) for yi in y]})
 
     except Exception as e:
         logging.error(f"Error in Dividing Features and Labels: {e}")
         raise
     finally:
         mlflow.end_run()
+
 
 def objective(trial, x , y):
     """
