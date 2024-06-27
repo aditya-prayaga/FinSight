@@ -205,26 +205,42 @@ def divide_train_eval_test_splits(df,ti):
     finally:
         mlflow.end_run()
 
-def handle_missing_values(df):
+import mlflow
+import logging
+import pandas as pd
+
+def handle_missing_values(df, column=None):
     """
     Handles null values in the DataFrame:
-    - Forward fills null values in all columns.
+    - Forward fills null values in all columns or a specific column.
 
     Parameters:
-    df: Input stock data.
+    df (pd.DataFrame): Input stock data.
+    column (str, optional): Specific column to handle null values in. If None, all columns are handled.
 
     Returns:
     pd.DataFrame: DataFrame with null values handled.
+
+    Raises:
+    ValueError: If the input DataFrame is empty.
     """
+    if df.empty:
+        raise ValueError("Input DataFrame is empty. Please provide a valid DataFrame.")
+
     mlflow.start_run(run_name="Handle Missing Values - PreProcessing Step 1")
     try:
         logging.info("Handling missing values.")
         logging.info("Dataset before handling missing values:\n{}".format(df))
 
-        # df = handle_null_open(df)
-        df.fillna(method='ffill', inplace=True)
-
-        # logging.info("Dataset after handling missing values:\n{}".format(df.head()))
+        if column:
+            null_count = df[column].isnull().sum()
+            df[column].fillna(method='ffill', inplace=True)
+        else:
+            null_count = df.isnull().sum().sum()
+            df.fillna(method='ffill', inplace=True)
+        
+        logging.info(f"Number of null values handled: {null_count}")
+        logging.info("Dataset after handling missing values:\n{}".format(df.head()))
 
         return df
     except Exception as e:
@@ -232,6 +248,7 @@ def handle_missing_values(df):
         raise
     finally:
         mlflow.end_run()
+
 
 def handle_outliers(df):
     """
