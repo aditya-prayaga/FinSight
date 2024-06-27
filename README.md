@@ -377,3 +377,7 @@ Key Points:
 - **Model Retraining:** The model is retrained using the newly ingested and processed data, with parameters from previous training or tuning.
 - **Task Dependencies:** The tasks are sequenced to ensure proper workflow, starting from data ingestion to retraining the model.
 - **MLflow Integration:** Although not explicitly shown in the retraining tasks, MLflow can be integrated to log the parameters and metrics during the retraining process.
+
+### Architecture
+
+![x](./images/FinSight%20Architecture.png)
