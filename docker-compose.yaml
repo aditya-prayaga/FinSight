@@ -84,7 +84,7 @@ x-airflow-common:
     # If you want to use it, outcomment it and replace airflow.cfg with the name of your config file
     # AIRFLOW_CONFIG: '/home/ramin/airflow/airflow.cfg'
   volumes:
-    - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+    - ${AIRFLOW_PROJ_DIR:-.}/DAGs:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/plugins:/opt/airflow/plugins
     - ${AIRFLOW_PROJ_DIR:-.}/model:/opt/airflow/model
@@ -328,7 +328,7 @@ services:
     ports:
       - "5002:5002"
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost:5000 || exit 1"]
+      test: ["CMD-SHELL", "curl --fail http://localhost:5002 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
