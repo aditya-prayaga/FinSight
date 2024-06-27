@@ -677,13 +677,6 @@ def hyper_parameter_tuning(x,y):
     # return {'units': 96, 'num_layers': 1, 'dropout_rate': 0.2, 'batch_size': 64}
 
 
-import mlflow
-import logging
-import numpy as np
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.losses import MeanSquaredError
-from tensorflow.keras import metrics
-import os
 
 def training(best_params, x, y):
     """
