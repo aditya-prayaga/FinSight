@@ -208,35 +208,23 @@ def divide_train_eval_test_splits(df,ti):
 def handle_missing_values(df, column=None):
     """
     Handles null values in the DataFrame:
-    - Forward fills null values in all columns or a specific column.
+    - Forward fills null values in all columns.
 
     Parameters:
-    df (pd.DataFrame): Input stock data.
-    column (str, optional): Specific column to handle null values in. If None, all columns are handled.
+    df: Input stock data.
 
     Returns:
     pd.DataFrame: DataFrame with null values handled.
-
-    Raises:
-    ValueError: If the input DataFrame is empty.
     """
-    if df.empty:
-        raise ValueError("Input DataFrame is empty. Please provide a valid DataFrame.")
-
     mlflow.start_run(run_name="Handle Missing Values - PreProcessing Step 1")
     try:
         logging.info("Handling missing values.")
         logging.info("Dataset before handling missing values:\n{}".format(df))
 
-        if column:
-            null_count = df[column].isnull().sum()
-            df[column].fillna(method='ffill', inplace=True)
-        else:
-            null_count = df.isnull().sum().sum()
-            df.fillna(method='ffill', inplace=True)
-        
-        logging.info(f"Number of null values handled: {null_count}")
-        logging.info("Dataset after handling missing values:\n{}".format(df.head()))
+        # df = handle_null_open(df)
+        df.fillna(method='ffill', inplace=True)
+
+        # logging.info("Dataset after handling missing values:\n{}".format(df.head()))
 
         return df
     except Exception as e:
@@ -244,7 +232,6 @@ def handle_missing_values(df, column=None):
         raise
     finally:
         mlflow.end_run()
-
 
 def handle_outliers(df):
     """
@@ -557,33 +544,27 @@ def divide_features_and_labels(train_df, eval_df, test_df, ti):
     - eval_df (pd.DataFrame): DataFrame containing the evaluation data.
     - test_df (pd.DataFrame): DataFrame containing the testing data.
     - ti (TaskInstance): Airflow TaskInstance for XCom operations.
-
-    Returns:
-    None
     """
-    def validate_df(df, df_name):
-        if df.empty:
-            raise ValueError(f"{df_name} DataFrame is empty. Please provide a valid DataFrame.")
-    
     mlflow.start_run(run_name="Divide Data set into features and labels")
     try:
         dfs = [train_df, eval_df, test_df]
-        dfs_names = ['train_df', 'eval_df', 'test_df']
-        x = [[] for _ in range(3)]
-        y = [[] for _ in range(3)]
-        
+        x_train = []
+        x_eval = []
+        x_test = []
+        y_train = []
+        y_eval = []
+        y_test = []
+        x = [x_train, x_eval, x_test]
+        y = [y_train, y_eval, y_test]
         for ind, df in enumerate(dfs):
-            validate_df(df, dfs_names[ind])
-            logging.info(f"{dfs_names[ind]} shape: {df.shape}")
             for i in range(50, df.shape[0]):
-                x[ind].append(df.iloc[i-50:i, 0].values)
-                y[ind].append(df.iloc[i, 0])
-            logging.info(f"Processed {dfs_names[ind]}: x_len={len(x[ind])}, y_len={len(y[ind])}")
-
+                x[ind].append(df.iloc[i-50:i, 0].values) 
+                y[ind].append(df.iloc[i, 0]) 
+        
         ti.xcom_push(key='x', value=x)
         ti.xcom_push(key='y', value=y)
 
-        mlflow.log_params({"x_len": [len(xi) for xi in x], "y_len": [len(yi) for yi in y]})
+        mlflow.log_params({"x": x,"y": y})
 
     except Exception as e:
         logging.error(f"Error in Dividing Features and Labels: {e}")
@@ -680,62 +661,39 @@ def hyper_parameter_tuning(x,y):
 
 def training(best_params, x, y):
     """
-    Train the model with the best hyperparameters.
+   Train the model with the best hyperparameters
 
     Parameters:
-    - best_params (dict): Best parameters from Hyperparameter Tuning.
-    - x (list): Features to train on.
-    - y (list): Labels to evaluate against.
+    - best_params: Best parameters from Hyperparameter Tuning
+    - x: Features to train on
+    - y: Labels to evaluate against
 
     Returns:
-    str: Saved model output path.
-
-    Raises:
-    ValueError: If `best_params` is missing required keys.
+    output_path: Saved model output path.
     """
-    required_keys = ["learning_rate", "batch_size"]
-    for key in required_keys:
-        if key not in best_params:
-            raise ValueError(f"Missing required hyperparameter: {key}")
-
     mlflow.start_run(run_name="training")
     try:
         x_train, y_train = np.array(x[0]), np.array(y[0])
-        logging.info(f"x_train shape: {x_train.shape}")
-        logging.info(f"y_train shape: {y_train.shape}")
-        
         x_train = np.reshape(x_train, (x_train.shape[0], x_train.shape[1], 1))
 
         # Create the model
         model = Model()
         model.create_training_layers(best_params=best_params, input_shape=(x_train.shape[1], 1))
-
-        logging.info("Model summary:")
-        model.get_model("training").summary(print_fn=logging.info)
-
+        
         # Compile the model
-        model.get_model("training").compile(
-            optimizer=Adam(learning_rate=best_params["learning_rate"]),
-            loss=MeanSquaredError(),
-            metrics=[metrics.MeanSquaredError(), metrics.AUC()]
-        )
+        model.get_model("training").compile(optimizer=Adam(learning_rate=best_params["learning_rate"]),loss=MeanSquaredError(), metrics=[metrics.MeanSquaredError(), metrics.AUC()])
 
         # Log parameters with MLflow
         mlflow.log_params(best_params)
 
         # Train the model
-        model.get_model("training").fit(
-            x_train, y_train, 
-            epochs=1, 
-            batch_size=best_params["batch_size"], 
-            verbose=1
-        )
+        # early_stopping = EarlyStopping(monitor='val_loss', patience=3, restore_best_weights=True)
+        model.get_model("training").fit(x_train, y_train, epochs=1, batch_size=best_params["batch_size"], verbose=1)
 
         # Save the model with MLflow
-        output_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-            "model", 'trained_stock_prediction.h5'
-        )
+        # mlflow.keras.log_model(model, "model")
+
+        output_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "model", 'trained_stock_prediction.h5')
         model.get_model("training").save(output_path)
 
     except Exception as e:
