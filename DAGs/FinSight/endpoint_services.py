@@ -46,6 +46,14 @@ def predict():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
         file.save(file_path)
         
+        # Define your parameters
+        source_blob_name = 'model/production/scaler.joblib'
+        destination_file_name = './model/scaler.joblib'
+
+        # Download the model from GCS
+        blob = bucket.blob(source_blob_name)
+        blob.download_to_filename(destination_file_name)
+
         # Load the data from the CSV file into a pandas DataFrame
         df = pd.read_csv(file_path)
         scaler = joblib.load('./model/scaler.joblib')  # Load the scaler used for normalizing data
