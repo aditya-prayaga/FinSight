@@ -19,27 +19,31 @@ Adaptive Stock Prediction and Monitoring Pipeline
 15. [Modelling & Training Phase](#training-phase)
 16. [Load and Predict](#training-phase)
 17. [Retraining DAG](#retraining-dag)
-19. [Alert System](#retraining-dag)
-18. [Conclusion](#conclusion)
+18. [Deployment](#deployment)
+19. [Conclusion](#conclusion)
+
 
 ### Introduction
-This section introduces the FinSight project, explaining its purpose, scope, and key features. It highlights the main objectives of the pipeline, such as stock data processing, prediction capabilities, and the technology stack used, including MLflow, Apache Airflow, and DVC. It also mentions the documentation's purpose, which is to facilitate replication and scaling on various machines and environments.
+This project demonstrates a comprehensive pipeline for processing stock data and making a prediction. It includes data preprocessing, hyper-parameter tuning, modelling and training with MlFlow dashboards, evaluating and testing, workflow orchestration with Apache Airflow, data versioning with DVC, schema generation, and anomaly detection. The project is documented to ensure replication on other machines.
 
 ### Project Structure
 This section outlines the directory and file structure of the project, providing a clear map of where different components and resources are located. It describes the roles of different directories and files, such as:
 
 DAGs: Contains Airflow Directed Acyclic Graphs that orchestrate the workflow. 
 Dockerfile: Various Dockerfiles for setting up the required environments for Airflow and MLflow.  
-config: Configuration files and scripts needed to customize and secure the pipeline.  
 data: The location for storing input data and processed outputs.  
 mlruns: MLflow tracking and logging directory for model training sessions.   
 model: Holds the trained model files and serialization formats.  
 
 We Created 2 branches
 
-1. ```dev``` for local development version with local storage & deployment
-2. ```main``` for production ready version with Google storage & deployment lined with google cloud compute service.
-3. Separated DAG tasks and its associated functions in 2 files namely ```finsight_pipeline_functions.py, finsight_pipeline_taks.py```
+1. [```dev```](https://github.com/aditya-prayaga/FinSight/tree/dev) for local development version with local storage & deployment
+2. [```main```](https://github.com/aditya-prayaga/FinSight) for production ready version with Google storage & deployment lined with google cloud compute service.
+
+We have Separated DAG tasks and its associated functions in 2 files namely ```finsight_pipeline_functions.py, finsight_pipeline_taks.py``` for code reusability it functionalities.
+
+We also wanted to decouple the model with Data and Model pipeline, so that today we used ```LSTM``` later we could replace the ```model.py``` other technique.
+
 
 ```
 
@@ -87,9 +91,17 @@ We Created 2 branches
 21 directories, 19 files
 ```
 
+Here is an Project Architecture comprising the gist of the workflows.
+### Architecture
+  ![Architecture](./images/FinSight%20Architecture.png)
+
+
+
+
 ### Prerequisites
-- Python 3.8+ (Packages like tensorflow, sklearn, keras, mlflow etc.)
+- Python 3.9 (Packages like tensorflow, Flask sklearn, keras, mlflow etc.)
 - Apache Airflow 2.5+
+- Docker
 - Google compute Engine
 - Google Cloud SDK (for GCS integration)
 
@@ -100,46 +112,45 @@ The User Installation Steps are as follows:
   ```
   git clone https://github.com/aditya-prayaga/FinSight.git
   ```
-2. Check if python version >= 3.8 using this command:
-  ```
-  python --version
-  ```
-3. Check if you have enough memory
-  ```docker
-  docker run --rm "debian:bullseye-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
-  ```
-**If you get the following error, please increase the allocation memory for docker.**
-  ```
-  Error: Task exited with return code -9 or zombie job
-  ```
+Note: 
+  - Check if python version >= 3.8 using this command:
+      ```
+      python --version
+      ```
+  - Check if you have enough memory
+    ```docker
+    docker run --rm "debian:bullseye-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
+    ```
 4. After cloning the git onto your local directory, please edit the `docker-compose.yaml` with the following changes:
 
-  ```yaml
-  user: "1000:0" # This is already present in the yaml file but if you get any error regarding the denied permissions feel free to edit this according to your uid and gid
-  AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com # If you are using other than gmail to send/receive alerts change this according to the email provider.
-  AIRFLOW__SMTP__SMTP_USER: # Enter your email 'don't put in quotes'
-  AIRFLOW__SMTP__SMTP_PASSWORD: # Enter your password here generated from google in app password
-  AIRFLOW__SMTP__SMTP_MAIL_FROM:  # Enter your email
- - ${AIRFLOW_PROJ_DIR:-.}/dags: #locate your dags folder path here (eg:/dags:/opt/airflow/dags/finsight)
- - ${AIRFLOW_PROJ_DIR:-.}/logs: #locate your project working directory folder path here (eg:/logs:/opt/airflow/logs)
- - ${AIRFLOW_PROJ_DIR:-.}/config: #locate the config file from airflow (eg:/opt/airflow/config)
-  ```
+    ```yaml
+    user: "1000:0" # This is already present in the yaml file but if you get any error regarding the denied permissions feel free to edit this according to your uid and gid
+    AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com # If you are using other than gmail to send/receive alerts change this according to the email provider.
+    AIRFLOW__SMTP__SMTP_USER: # Enter your email 'don't put in quotes'
+    AIRFLOW__SMTP__SMTP_PASSWORD: # Enter your password here generated from google in app password
+    AIRFLOW__SMTP__SMTP_MAIL_FROM:  # Enter your email
+    ```
 5. In the cloned directory, navigate to the config directory under FINSIGHT and place your key.json file from the GCP service account for handling pulling the data from GCP.
 
 6. Run the Docker composer.
    ```
-   docker compose up`
-
+   docker compose up
+   ```
 ### Usage
 
+#### Data and Model Pipeline
 - To view Airflow dags on the web server, visit https://localhost:8080 and log in with credentials
    ```
    user: airflow2
    password: airflow2
    ```
-- Here we find our ```FinSight_pipeline``` pipeline. We can run (Click Play button) from here itself or click on the pipeline and run from there too.
+- Here we find our ```FinSight_pipeline```, ```ReTrain_FinSight_pipeline``` pipeline. We can run (Click Play button) from here itself or click on the pipeline and run from there too.
 
-- Stop docker containers (hit Ctrl + C in the terminal)
+- To view experiment tracking we need to visit to mlflow server https://localhost:5000, that is also hosted by our docker compose file. We can find it already running when with docker compose.
+
+-- To engage with Model Inference server we need to visit https://localhost:5002, a test end point to check the hosting is funtional later we can interact with https://localhost:5002/predict by passing a file with ticker symbol of Stock Open values.
+
+**Note:** https://localhost:5002/train is under development as we wanted to give the capability to user of being flexible with the stock symbol and training data period. 
 
 ### Data Pipeline Workflow
 
@@ -237,7 +248,6 @@ Conditional triggering of tasks can be achieved by defining appropriate failure 
 - We used **mlflow's logging mechanism** to log dataset versions & types, model analysis, system level metrics, etc parts of the pipeline.
 
 ### Data Version Control
-Describes the logging mechanism implemented in the project, including what information gets logged, how to access these logs, and how to configure logging levels. It also details how MLflow is used for tracking experiments, parameter tuning, and model performance metrics.
 
 - We handled data version controlling (DVC) by relying on the Google Cloud Storage Object Versioning for Production
 -  We plan to programmatically tackle for local version controlling of data by enabling dvc init & Bash Operator in airflow.
@@ -246,7 +256,7 @@ Describes the logging mechanism implemented in the project, including what infor
 
 - For Modelling we plan to use local folder and Mlflow's registry for storing model & would like to extend to Google cloud storage utilization.
   
-![x](./images/model-dataset.png)
+![x](./images/model-gcs.png)
 ### Pipeline Optimization
 Discusses methods used to optimize the pipeline, such as improving execution times, reducing resource consumption, and ensuring reliability. Techniques might include parallel processing, effective error handling, and smart caching strategies.
 
@@ -351,12 +361,12 @@ For each DataFrame, it constructs the **feature** vectors from the previous 50 t
 ### Hyper Parameter Tuning
 Describes the process of hyperparameter tuning, including the use of tools like Optuna for finding optimal model settings. It should explain the objective function, the parameters being optimized, and how best values are integrated back into the model training process.
 
-- This section performs hyperparameter tuning using Optuna.
+- This section performs hyperparameter tuning using **Optuna**.
 - Here defines an objective function to optimize various hyperparameters like units, number of layers, dropout rate, learning rate, and batch size. We can add epochs also if needed.
 - The hyper_parameter_tuning function creates an Optuna study, optimizes the objective function over multiple **trials(Here we used 30)**, and logs the best hyperparameters using MLflow.
-- Summarizing this Performs hyperparameter tuning to optimize the model. This step is part of the code but can be skipped during testing by retrieving .
+- Summarizing this Performs hyperparameter tuning to optimize the model. This step is part of the code but can be skipped during testing by retrieving.
 
-### Modelling & Training Phase
+### Modeling & Training Phase
 Provides a comprehensive overview of the modeling and training processes, including details on the types of models used, the training algorithms, and how model performance is evaluated and improved over time.
 
 - **Training Function:** The training function trains the model using the best hyperparameters obtained from hyperparameter tuning and trains model for around **45 epochs** and considering the evaluation to be using mean squared Error.
@@ -401,13 +411,33 @@ Key Points:
 - **Task Dependencies:** The tasks are sequenced to ensure proper workflow, starting from data ingestion to retraining the model.
 - **MLflow Integration:** Although not explicitly shown in the retraining tasks, MLflow can be integrated to log the parameters and metrics during the retraining process.
 
-  ### Conclusion
+### Deployment
 
-The FinSight project encapsulates a sophisticated, adaptive pipeline designed to tackle the complexities of stock prediction and monitoring. By leveraging advanced data processing techniques, machine learning models, and real-time data version control, FinSight provides a robust framework for predicting stock market trends with a high degree of accuracy.
+- Deployment happens when there is any merge happening to main branch that would trigger an **Rolling update** event via github actions. Github stores the gcp cred key as **Base64** encoded string in Github secrets.
+
+- We can see the dployments here via this link: https://github.com/aditya-prayaga/FinSight/actions/workflows/Pipeline_build.yaml
+
+  ![x](./images/Deployment-Summary.png)
+
+- The Deployment of current System is happening via Google **Compute Engine Service**.
+
+  ![x](./images/google-instance-group.png)
+
+- We used Auto Scaling(Min 1 & Max 3) policies to target the instance group to auto scale when there is load increase in cpu above 60%
+
+  ![x](./images/google-autoscaling.png)
+
+- We used Load Balancer to segregate the load on 3 different services namely airflow deployment, mlflow deployment, predict server deployment balance different.
+  ![x](./images/google-load-balancing.png)
+
+- We have defined our own requirement rules for the applications to serve from. So We created VPC, Subnet and associated particular firewall rules to open the ports required.
+
+  ![x](./images/googl.png)
+
+### Conclusion
+The FinSight project encapsulates a, adaptive pipeline designed to tackle the complexities of stock prediction. By leveraging data processing techniques, machine learning models, and real-time data version control, FinSight provides a robust framework for predicting stock market trends with a high degree of accuracy.
 
 Our documentation and project structure are crafted to facilitate easy adoption and scalability, ensuring that users can not only replicate the existing setup but also adapt and expand it according to their needs. Through interactive tutorials, comprehensive testing, and dynamic visualizations, we aim to engage users at all levels, from beginners to advanced practitioners, enabling them to derive meaningful insights and value from the pipeline.
 
-We believe that FinSight stands as a testament to the power of open-source technology and collaborative development. As the project evolves, we encourage contributions and feedback from the community to help us improve and add even more capabilities to this pipeline.
-
-Thank you for exploring FinSight. We hope it serves as a valuable tool in your data analytics and machine learning endeavors, helping you to make informed decisions in the ever-changing landscape of the stock market.
+Thank you for exploring FinSight.
 
